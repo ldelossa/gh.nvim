@@ -1,0 +1,61 @@
+local pr = require('litee.gh.pr')
+local dv = require('litee.gh.pr.diff_view')
+local pr_handlers = require('litee.gh.pr.handlers')
+local helpers = require('litee.gh.helpers')
+
+local M = {}
+
+function M.setup()
+    -- use a vim.ui.select prompt to open one of the first 100 pull requests.
+    vim.api.nvim_create_user_command("GHOpenPR", pr.open_pull, {})
+    -- open the Pull Request panel in the side bar panel
+    vim.api.nvim_create_user_command("GHOpenToPR", pr.open_to_pr, {})
+    -- open the Pull Request panel in a pop out window
+    vim.api.nvim_create_user_command("GHPopOutPR", pr.popout_to_pr, {})
+    -- open the Commit panel in the side bar panel.
+    vim.api.nvim_create_user_command("GHOpenToCommit", pr.open_to_pr_files, {})
+    -- open the Commit panel in a pop out window
+    vim.api.nvim_create_user_command("GHPopOutCommit", pr.popout_to_pr_files, {})
+    -- collapse the node within the Pull Request panel
+    vim.api.nvim_create_user_command("GHCollapsePR", pr.collapse_pr, {})
+    -- expand the node within the Pull Request panel
+    vim.api.nvim_create_user_command("GHExpandPR", pr.expand_pr, {})
+    -- collapse the node within the Commit panel
+    vim.api.nvim_create_user_command("GHCollapseCommit", pr.collapse_pr_commits, {})
+    -- expand the node within the Commit panel
+    vim.api.nvim_create_user_command("GHExpandCommit", pr.expand_pr_commits, {})
+    -- collapse the node within the Review panel
+    vim.api.nvim_create_user_command("GHCollapseReview", pr.collapse_pr_review, {})
+    -- expand the node within the Review panel
+    vim.api.nvim_create_user_command("GHExpandReview", pr.expand_pr_review, {})
+    -- refresh all details of the PR
+    vim.api.nvim_create_user_command("GHRefreshPR", pr_handlers.global_refresh, {})
+    -- refresh just comments, useful to fresh convo buffers quicker.
+    vim.api.nvim_create_user_command("GHRefreshComments", pr_handlers.refresh_comments, {})
+    -- start a code review
+    vim.api.nvim_create_user_command("GHStartReview", pr.start_review, {})
+    -- submit all pending comments in a code review
+    vim.api.nvim_create_user_command("GHSubmitReview", pr.submit_review, {})
+    -- delete the current code review
+    vim.api.nvim_create_user_command("GHDeleteReview", pr.delete_review, {})
+    -- open the main Pull Request details convo buffer.
+    vim.api.nvim_create_user_command("GHPRDetails", pr.open_pr_buffer, {})
+    -- when cursor is on a commented line of a diff view, toggle the convo buffer.
+    vim.api.nvim_create_user_command("GHToggleThreads", function() dv.toggle_threads(nil) end, {})
+    -- when cursor is on a commented line of a diff view, move to the next convo buffer
+    vim.api.nvim_create_user_command("GHNextThread", dv.next_thread, {})
+    -- when cursor is on a line which can be commented in a diff view, create a comment
+    vim.api.nvim_create_user_command("GHCreateThread", dv.create_comment, {})
+    -- close a PR and cleanup any state associated with it (happens on tab and neovim close as well)
+    vim.api.nvim_create_user_command("GHClosePR", pr.close_pull, {})
+    -- close the Commit panel
+    vim.api.nvim_create_user_command("GHCloseCommit", pr.close_pr_commits, {})
+    -- close the Review panel
+    vim.api.nvim_create_user_command("GHCloseReview", pr.close_pr_review, {})
+    -- preview the issue or pull request number under the cursor
+    vim.api.nvim_create_user_command("GHPreviewIssue", helpers.preview_issue_under_cursor, {})
+    -- Add a label to the currently opened pull request.
+    vim.api.nvim_create_user_command("GHAddLabel", pr.add_label, {})
+end
+
+return M

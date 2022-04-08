@@ -1,0 +1,344 @@
+*gh.nvim* gh.nvim
+
+Author:   Louis DeLosSantos <louis.delos@gmail.com>
+Homepage: <https://github.com/ldelossa/gh.nvim>
+License:  MIT license
+
+             ██████╗ ██╗  ██╗   ███╗   ██╗██╗   ██╗██╗███╗   ███╗
+            ██╔════╝ ██║  ██║   ████╗  ██║██║   ██║██║████╗ ████║
+            ██║  ███╗███████║   ██╔██╗ ██║██║   ██║██║██╔████╔██║
+            ██║   ██║██╔══██║   ██║╚██╗██║╚██╗ ██╔╝██║██║╚██╔╝██║ Powered by
+            ╚██████╔╝██║  ██║██╗██║ ╚████║ ╚████╔╝ ██║██║ ╚═╝ ██║ litee.nvim
+             ╚═════╝ ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝  ╚═══╝  ╚═╝╚═╝     ╚═╝
+====================================================================================
+CONTENTS                                                         *litee-contents*
+
+  1     Intro.........................................|gh-intro|
+  3     Usage And Features............................|gh-usage|
+  4     Commands......................................|gh-commands|
+  6     Config........................................|gh-config|
+  7     Highlights....................................|gh-highlights|
+
+====================================================================================
+INTRODUCTION                                                              *gh-intro*
+
+GH.nvim, initially, is a plugin for interactive code reviews which take place
+on the GitHub platform. 
+
+This plugin was created due to the repeat frustration of performing code reviews
+of complex changes in the GitHub web UI. 
+
+The mentioned frustration seemed to boil down to a few major drawbacks which GH.nvim
+sets out to fix. These are:
+
+1) Lack of context during code review
+    When viewing a pull request in a large code base its very likely that you're
+    not sure of the full context of the change. The patch may change the way a 
+    function works, but you are not aware all the places this function may be 
+    called. Its difficult to safely say that the patch is OK and approve it.
+
+    To alleviate this, GH.nvim will make the pull request code locally available
+    on your file system.
+
+2) Lack of sufficient editor tools like LSP
+    Because the pull request's code is made locally available all your LSP tools
+    work as normal. 
+
+    In my previous point, this means performing a LSP call to understand all the 
+    usages of the editing function is now possible. 
+
+3) Lack of automation when attempting to view the full context of a pull request.
+    GH.nvim automates the process of making the pull request's code locally available.
+    To do this, GH.nvim embeds a `git` CLI wrapper. 
+
+    When a pull request is opened in GH.nvim the remote is added locally, the 
+    branch is fetched, and the repo is checked out to the pull request's HEAD.
+
+4) Inability to edit and run the code in the pull request.
+    Because the pull request's code is made available locally, its completely 
+    editable in your familiar `neovim` instance. 
+
+    This works for both for writing reviews and responding to reviews of your
+    pull request. 
+
+    You can build up a diff while responding to review comments, stash them, 
+    check out your branch, and rebase those changes into your PR and push again.
+    Much handier then jumping back and forth between `neovim` and a browser.
+
+    Additionally, since the code is local and checked out on your file system,
+    you can now run any local development environments that may exist. The 
+    environment will be running the pull request's code and you can perform sanity
+    checks easily.
+
+GH.nvim is a "commit-wise" review tool. This means you browse the changed files
+by their commits. This will feel familiar to those who immediately click on the
+"commits" tab on the GitHub UI to view the incremental changes of the pull request.
+
+GH.nvim holds the opinion that this is the correct way to do a code review and 
+and the TUI emphasizes this workflow.
+
+====================================================================================
+Usage And Features                                                        *gh-usage*
+
+GH.nvim initially focuses on pull request code reviews. The plugin has been designed
+to make the process of review coding seamless with `neovim` editing. The following 
+walk through will give a overview of GH.nvim's features and how to use the.
+
+Dependencies:
+    GH.nvim relies on the `litee.nvim` framework for building its plugin surface.
+    You must include this package for GH.nvim to work.
+    https://github.com/ldelossa/litee.nvim
+
+    Additionally, both the `git` and `gh` CLI tools are required for the plugin
+    to interface with the git repository and the GitHub API respectively.
+    https://git-scm.com/
+    https://github.com/cli/cli
+
+    It is not mandatory but *highly* recommended to use GH.nvim with either 
+    fzf.lua or telescope. This is because GH.nvim uses `vim.ui.select` for most
+    of its users inputs. By utilizing fzf.lua or telescope you can configure both
+    to override `vim.ui.select` function and provide a fuzzy searcher over all 
+    input selections GH.nvim creates. 
+
+    I'm personally an fzf.lua user and you can make this work by adding the following
+    line to your fzf.lua config:
+        `lua vim.cmd("FzfLua register_ui_select")` 
+
+    GH.nvim is best used with a patched font. Ideally, the patch font has codicons
+    support, but icons will work fine with nerd font patches as well.
+
+Code Review Environment:
+    GH.nvim *will* modify the `git` repository at the root of the directory 
+    `neovim` has been opened too. 
+
+    These modifications include adding the pull request's remotes, checking out
+    branches, removing the pull request remotes, and fetching remote content. 
+
+    The suggested way to use `GH.nvim` would be to create a worktree of the target
+    repository for code review purposes. If you are not familiar with worktrees,
+    they are "linked" but separate repository directories. This allows you to make
+    changes to branches without the potential for any issues on our main repository.
+
+    An example using `neovim`'s repo on my system would look like this:
+
+    ```
+    $ cd ~/git/c/neovim
+    $ git worktree add ../neovim-code-review
+    $ cd ../neovim-code-review
+    ```
+    After the `cd` my host system is inside a git worktree, GH.nvim can modify 
+    this repository's `git` state without effecting the original "main" repository.
+
+    This is only a suggestion, GH.nvim will not perform any data loosing operations
+    on the underlying repository, however just to be sure, especially while GH.nvim
+    is in beta, its suggested to use the worktree approach.
+
+Configuration:
+    A simplest possible configuration, using all the defaults, will look like 
+    this:
+
+    require('litee.lib').setup()
+    require('litee.gh').setup()
+
+    This will first configure the `litee.nvim` library and then configure GH.nvim.
+    All defaults will be used. For further configuration information see `h: gh-configuration`
+
+Opening a PR:
+    After configuring GH.nvim you can open `neovim` to the base repository hosting
+    the pull request you'd like to review, or create a review to. 
+
+    The `GHOpenPR` command will open a `vim.ui.select` UI with the first 100 pull
+    requests for selection. 
+
+    On selection the main GH.nvim UI will load and present you with a `litee.nvim` 
+    panel presenting the PR's details and a buffer with the PR meta data and issue
+    comments will be presented. 
+
+The Panel:
+    The panel loaded will display some key information. At a high level you'll see
+    several trees, outlined below are the ones of most importance. 
+
+    Each section will be described with an example of the tree layout in the 
+    panel using a test PR I created for this purpose.
+
+    By default, if the node supports it, pressing the "d" key show a details
+    popup with some information. This is useful for quickly displaying comments
+    and commit messages.
+
+    Details:
+           #1 update readme with first update
+            Details:
+         ⎸     number:
+         ⎸     author:
+         ⎸     state:
+         ⎸     repo:
+         ⎸     base:
+         ⎸     head:
+         ⎸    labels:
+         ⎸ ⎸     bug
+         ⎸    assignees:
+         ⎸ ⎸     ldelossa
+    
+        Details describes the general information of the pull request. 
+        By hitting "return" on the very first item you'll always be brought
+        back to the main pull request buffer. 
+
+        At the main pull request buffer you can see any comments not associated
+        with any file diffs, the title of the PR and the body. You can modify
+        comments along with edit the title and body of the PR if you authored it.
+
+    Commits:
+            Commits:
+         ⎸     f86c5d09
+         ⎸     943cb016
+         ⎸     d0b9c794
+         ⎸     37d5f671
+         ⎸     0e6ee395
+
+        The commits section displays each commit of the pull request. By hitting
+        "return" one one of the commits you'll be taken to a diff of the first
+        file changed in the commit and a new panel will open outlining the files
+        changed within a commit.
+
+        This is the main way of reviewing code in GH.nvim, you'll move between
+        commits and review the changes.
+
+    Conversations:
+            Conversations:
+         ⎸    newfile:267
+         ⎸    newfile:261
+         ⎸ ⎸     comment by ldelossa
+         ⎸ ⎸     reply by ldelossa
+         ⎸ ⎸     reply by ldelossa
+         ⎸ ⎸     reply by ldelossa
+
+        The conversations section outlines all conversation threads associated
+        with the pull request. 
+
+        By hitting "return" on any of the comments in a thread you'll be brought
+        to the diff view with the conversation present for viewing.
+
+    There are other trees that will appear if the data is there, such as "requested reviewers"
+    and "assignees". They are mostly informative.
+
+The Diff View:
+    
+    The diff view presents patch changes between old and new files. A diff view
+    can be used to view the changes of the pull request, review conversations on
+    particular lines of a pull request, and create new conversations on particular
+    lines of a pull request.
+
+    The diff view will paint icons in the sign columns where comments can be 
+    created. To create a comment ensure your mouse is on a line with the "+" mark
+    and use the "GHCreateThread" command.
+
+    When the cursor is on a line with with a comment, indicated by a sign in the 
+    sign column, you may use the `GHToggleThread` command to open and close it. 
+    If there are multiple comments on a line you may move to the next one with 
+    the `GHNextThread` command.
+    
+Convo Buffers:
+    
+    Conversations happen in various "convo buffers". These buffers provide a way
+    to write, edit, and remove comments for a particular diff line or for the 
+    pr as a whole. 
+
+    Convo buffers are only modifiable in the text region at the end of the file,
+    once text is provided hitting `ctrl-s` will submit the text. 
+
+    Use `ctrl-a` when the cursor is on a comment to open a menu with various
+    actions you can perform on a comment.
+
+Code Reviews:
+    
+    GH.nvim works just like the GitHub UI.
+
+    When a code review has not been started all replies to threads or creations of threads 
+    are issued outside of a review. 
+
+    When a code review is started, all comments to threads or creation of threads occur as
+    pending until you submit the review. You'll notice this in the panel, as new messages 
+    you create are marked as pending.
+
+    If you close GH.nvim and open the PR again without submitting your review, the review
+    will automatically be entered. This is the same as GitHub's UI, you'll always be in the
+    review until you explicitly submit or cancel the review.
+
+    You can create a review with the `GHStartReview` command, submit it with the `GHSubmitReview` 
+    command and cancel it with the `GHCancelReview` command.
+
+    Submitted code reviews show up in the panel as well. They are selectable, and when selected
+    a new panel is opened which groups the conversation threads by the pull request review.
+
+====================================================================================
+Commands                                                               *gh-commands*
+
+    -- use a vim.ui.select prompt to open one of the first 100 pull requests.
+    vim.api.nvim_create_user_command("GHOpenPR", pr.open_pull, {})
+    -- open the Pull Request panel in the side bar panel
+    vim.api.nvim_create_user_command("GHOpenToPR", pr.open_to_pr, {})
+    -- open the Pull Request panel in a pop out window
+    vim.api.nvim_create_user_command("GHPopOutPR", pr.popout_to_pr, {})
+    -- open the Commit panel in the side bar panel.
+    vim.api.nvim_create_user_command("GHOpenToCommit", pr.open_to_pr_files, {})
+    -- open the Commit panel in a pop out window
+    vim.api.nvim_create_user_command("GHPopOutCommit", pr.popout_to_pr_files, {})
+    -- collapse the node within the Pull Request panel
+    vim.api.nvim_create_user_command("GHCollapsePR", pr.collapse_pr, {})
+    -- expand the node within the Pull Request panel
+    vim.api.nvim_create_user_command("GHExpandPR", pr.expand_pr, {})
+    -- collapse the node within the Commit panel
+    vim.api.nvim_create_user_command("GHCollapseCommit", pr.collapse_pr_commits, {})
+    -- expand the node within the Commit panel
+    vim.api.nvim_create_user_command("GHExpandCommit", pr.expand_pr_commits, {})
+    -- collapse the node within the Review panel
+    vim.api.nvim_create_user_command("GHCollapseReview", pr.collapse_pr_review, {})
+    -- expand the node within the Review panel
+    vim.api.nvim_create_user_command("GHExpandReview", pr.expand_pr_review, {})
+    -- refresh all details of the PR
+    vim.api.nvim_create_user_command("GHRefreshPR", pr_handlers.global_refresh, {})
+    -- refresh just comments, useful to fresh convo buffers quicker.
+    vim.api.nvim_create_user_command("GHRefreshComments", pr_handlers.refresh_comments, {})
+    -- start a code review
+    vim.api.nvim_create_user_command("GHStartReview", pr.start_review, {})
+    -- submit all pending comments in a code review
+    vim.api.nvim_create_user_command("GHSubmitReview", pr.submit_review, {})
+    -- delete the current code review
+    vim.api.nvim_create_user_command("GHDeleteReview", pr.delete_review, {})
+    -- open the main Pull Request details convo buffer.
+    vim.api.nvim_create_user_command("GHPRDetails", pr.open_pr_buffer, {})
+    -- when cursor is on a commented line of a diff view, toggle the convo buffer.
+    vim.api.nvim_create_user_command("GHToggleThreads", function() dv.toggle_threads(nil) end, {})
+    -- when cursor is on a commented line of a diff view, move to the next convo buffer
+    vim.api.nvim_create_user_command("GHNextThread", dv.next_thread, {})
+    -- when cursor is on a line which can be commented in a diff view, create a comment
+    vim.api.nvim_create_user_command("GHCreateThread", dv.create_comment, {})
+    -- close a PR and cleanup any state associated with it (happens on tab and neovim close as well)
+    vim.api.nvim_create_user_command("GHClosePR", pr.close_pull, {})
+    -- close the Commit panel
+    vim.api.nvim_create_user_command("GHCloseCommit", pr.close_pr_commits, {})
+    -- close the Review panel
+    vim.api.nvim_create_user_command("GHCloseReview", pr.close_pr_review, {})
+    -- preview the issue or pull request number under the cursor
+    vim.api.nvim_create_user_command("GHPreviewIssue", helpers.preview_issue_under_cursor, {})
+    -- Add a label to the currently opened pull request.
+    vim.api.nvim_create_user_command("GHAddLabel", pr.add_label, {})
+
+====================================================================================
+Conf                                                                     *gh-config*
+
+Below is the default configuration.
+
+M.config = {
+    icon_set    = "codicons",
+    jump_mode   = "invoking",
+    map_resize_keys = true,
+    disable_keymaps = false,
+    keymaps = {
+        open = "<CR>",
+        expand = "zo",
+        collapse = "zc",
+        goto_issue = "gd",
+        details = "d"
+    },
+}
