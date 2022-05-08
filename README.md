@@ -62,3 +62,5 @@ GH.nvim holds the opinion that this is the correct way to do a code review and
 and the TUI emphasizes this workflow.
 
 see doc/gh-nvm.txt for usage and more details.
+
+Checkout my [rational and demo video](https://youtu.be/hhrWwYfMK1I) to get an initial idea of how gh.nvim works, why it works the way it does, and its look and feel. 
