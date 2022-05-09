@@ -188,9 +188,10 @@ function M.get_check_runs(cb)
             cb()
             return
         end
+        local suite_counter = 0
         M.pull_state.check_runs = {}
         if #data["check_suites"] > 0 then -- if we need to, go get the check runs for the suites we found.
-            for i, suite in ipairs(data["check_suites"]) do
+            for _, suite in ipairs(data["check_suites"]) do
                 local fence_name = "get_check_runs_by_suite_" .. suite["id"]
                 local sub_fence_id = add_fence(fence_name)
                 ghcli.get_check_runs_by_suite(suite["id"], function(err1, runs)
@@ -204,7 +205,8 @@ function M.get_check_runs(cb)
                     for _, run in ipairs(runs["check_runs"]) do
                         table.insert(M.pull_state.check_runs, run)
                     end
-                    if i == #data["check_suites"] then
+                    suite_counter = suite_counter + 1
+                    if suite_counter == #data["check_suites"] then
                         cb()
                     end
                 end)
