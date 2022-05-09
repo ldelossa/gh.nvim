@@ -9,7 +9,7 @@ function json_decode_safe(output)
     if success then
         return decoded
     else
-        return {message =  decoded}
+        return {message =  "json decode error"}
     end
 end
 
