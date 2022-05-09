@@ -151,6 +151,7 @@ local function start_refresh_timer(now)
         vim.schedule(function () lib_notify.notify_popup_with_timeout("Refreshing Pull Request.", 7500, "info") end)
         handlers.global_refresh()
     end
+    vim.schedule(function() vim.api.nvim_echo({{"[gh.nvim] started backround refresh with interval " .. 180000/1000/60 .. " minutes", "LTInfo"}}, false, {}) end)
     M.periodic_refresh:start(180000, 180000, function()
         vim.schedule(function () lib_notify.notify_popup_with_timeout("Refreshing Pull Request.", 7500, "info") end)
         handlers.global_refresh() end
@@ -162,15 +163,6 @@ local function stop_refresh_timer()
         return
     end
     vim.loop.timer_stop(M.periodic_refresh)
-end
-
-local function setup_refresh_timer_focus()
-    table.insert(M.autocmds, vim.api.nvim_create_autocmd({"FocusGained"}, {
-        callback = function() start_refresh_timer(true) end,
-    }))
-    table.insert(M.autocmds, vim.api.nvim_create_autocmd({"FocusLost"}, {
-        callback = stop_refresh_timer,
-    }))
 end
 
 local function on_tab_close()
@@ -219,12 +211,13 @@ function M.open_pull()
                     function(choice)
                         if choice == "yes" then
                             M.close_pull()
-                            handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () setup_refresh_timer_focus() on_tab_close() end ))
+                            -- handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () setup_refresh_timer_focus() on_tab_close() end ))
+                            handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
                         end
                     end
                 )
             else
-                handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () setup_refresh_timer_focus() on_tab_close() end ))
+                handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
             end
         end
     )
