@@ -4,6 +4,15 @@ local graphql = require('litee.gh.ghcli.graphql')
 
 local M = {}
 
+function json_decode_safe(output)
+    local success, decoded = pcall(function () return vim.json.decode(output) end)
+    if success then
+        return decoded
+    else
+        return {message =  decoded}
+    end
+end
+
 -- gh_exec executs the (assumed) gh command which returns json.
 --
 -- if nil is returned the second returned argument is the error output.
@@ -17,7 +26,7 @@ local function gh_exec(cmd, no_json_decode)
     if no_json_decode then
         return output
     end
-    local tbl = vim.json.decode(output)
+    local tbl = json_decode_safe(output)
     if tbl["message"] ~= nil then
         return nil
     end
@@ -65,7 +74,7 @@ function M.list_collaborators_async(on_read)
             buffer = buffer .. data
         end
         if data == nil then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -78,7 +87,7 @@ function M.list_collaborators_async(on_read)
         vim.schedule(
             function()
                 if data ~= nil then
-                    data = vim.json.decode(buffer)
+                    data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
                         on_read(err, nil)
@@ -114,7 +123,7 @@ function M.list_repo_issues_async(on_read)
             buffer = buffer .. data
         end
         if data == nil then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -127,7 +136,7 @@ function M.list_repo_issues_async(on_read)
         vim.schedule(
             function()
                 if data ~= nil then
-                    data = vim.json.decode(buffer)
+                    data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
                         on_read(err, nil)
@@ -163,7 +172,7 @@ function M.get_user_async(on_read)
             buffer = buffer .. data
         end
         if data == nil then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -176,7 +185,7 @@ function M.get_user_async(on_read)
         vim.schedule(
             function()
                 if data ~= nil then
-                    data = vim.json.decode(buffer)
+                    data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
                         on_read(err, nil)
@@ -218,7 +227,7 @@ function M.get_pull_files_async(pull_number, on_read)
             buffer = buffer .. data
         end
         if data == nil then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -231,7 +240,7 @@ function M.get_pull_files_async(pull_number, on_read)
         vim.schedule(
             function()
                 if data ~= nil then
-                    data = vim.json.decode(buffer)
+                    data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
                         on_read(err, nil)
@@ -283,7 +292,7 @@ function M.get_pull_async(pull_number, on_read)
             buffer = buffer .. data
         end
         if data == nil then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -296,7 +305,7 @@ function M.get_pull_async(pull_number, on_read)
         vim.schedule(
             function()
                 if data ~= nil then
-                    data = vim.json.decode(buffer)
+                    data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
                         on_read(err, nil)
@@ -332,7 +341,7 @@ function M.list_pulls_async(on_read)
             buffer = buffer .. data
         end
         if data == nil then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -345,7 +354,7 @@ function M.list_pulls_async(on_read)
         vim.schedule(
             function()
                 if data ~= nil then
-                    data = vim.json.decode(buffer)
+                    data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
                         on_read(err, nil)
@@ -390,7 +399,7 @@ function M.update_issue_body_async(number, body, on_read)
             buffer = buffer .. data
         end
         if data == nil then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -403,7 +412,7 @@ function M.update_issue_body_async(number, body, on_read)
         vim.schedule(
             function()
                 if data ~= nil then
-                    data = vim.json.decode(buffer)
+                    data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
                         on_read(err, nil)
@@ -448,7 +457,7 @@ function M.update_pull_body_async(pull_number, body, on_read)
             buffer = buffer .. data
         end
         if data == nil then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -461,7 +470,7 @@ function M.update_pull_body_async(pull_number, body, on_read)
         vim.schedule(
             function()
                 if data ~= nil then
-                    data = vim.json.decode(buffer)
+                    data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
                         on_read(err, nil)
@@ -505,7 +514,7 @@ function M.get_pull_commits_async(pull_number, on_read)
             buffer = buffer .. data
         end
         if data == nil then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -518,7 +527,7 @@ function M.get_pull_commits_async(pull_number, on_read)
         vim.schedule(
             function()
                 if data ~= nil then
-                    data = vim.json.decode(buffer)
+                    data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
                         on_read(err, nil)
@@ -604,7 +613,7 @@ function M.get_pull_issue_comments_async(pull_number, on_read)
             buffer = buffer .. data
         end
         if data == nil then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -617,7 +626,7 @@ function M.get_pull_issue_comments_async(pull_number, on_read)
         vim.schedule(
             function()
                 if data ~= nil then
-                    data = vim.json.decode(buffer)
+                    data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
                         on_read(err, nil)
@@ -732,7 +741,7 @@ function M.get_issue_async(number, on_read)
             buffer = buffer .. data
         end
         if data == nil then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -745,7 +754,7 @@ function M.get_issue_async(number, on_read)
         vim.schedule(
             function()
                 if data ~= nil then
-                    data = vim.json.decode(buffer)
+                    data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
                         on_read(err, nil)
@@ -785,7 +794,7 @@ function M.get_issue_comments_async(number, on_read)
             buffer = buffer .. data
         end
         if data == nil then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -798,7 +807,7 @@ function M.get_issue_comments_async(number, on_read)
         vim.schedule(
             function()
                 if data ~= nil then
-                    data = vim.json.decode(buffer)
+                    data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
                         on_read(err, nil)
@@ -840,7 +849,7 @@ function M.get_review_threads_async(pull_number, on_read)
     })
     vim.loop.read_start(stdout, function(err, data)
         if err then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -852,7 +861,7 @@ function M.get_review_threads_async(pull_number, on_read)
             buffer = buffer .. data
         end
         if data == nil then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -865,7 +874,7 @@ function M.get_review_threads_async(pull_number, on_read)
         vim.schedule(
             function()
                 if data ~= nil then
-                    data = vim.json.decode(buffer)
+                    data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
                         on_read(err, nil)
@@ -1027,7 +1036,7 @@ function M.list_reviews_async(pull_number, on_read)
             buffer = buffer .. data
         end
         if data == nil then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -1040,7 +1049,7 @@ function M.list_reviews_async(pull_number, on_read)
         vim.schedule(
             function()
                 if data ~= nil then
-                    data = vim.json.decode(buffer)
+                    data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
                         on_read(err, nil)
@@ -1087,7 +1096,7 @@ function M.add_reaction(id, reaction, on_read)
             buffer = buffer .. data
         end
         if data == nil then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -1100,7 +1109,7 @@ function M.add_reaction(id, reaction, on_read)
         vim.schedule(
             function()
                 if data ~= nil then
-                    data = vim.json.decode(buffer)
+                    data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
                         on_read(err, nil)
@@ -1147,7 +1156,7 @@ function M.remove_reaction_async(id, reaction, on_read)
             buffer = buffer .. data
         end
         if data == nil then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -1160,7 +1169,7 @@ function M.remove_reaction_async(id, reaction, on_read)
         vim.schedule(
             function()
                 if data ~= nil then
-                    data = vim.json.decode(buffer)
+                    data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
                         on_read(err, nil)
@@ -1266,7 +1275,7 @@ function M.list_labels_async(on_read)
             buffer = buffer .. data
         end
         if data == nil then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -1279,7 +1288,7 @@ function M.list_labels_async(on_read)
         vim.schedule(
             function()
                 if data ~= nil then
-                    data = vim.json.decode(buffer)
+                    data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
                         on_read(err, nil)
@@ -1407,7 +1416,7 @@ function M.get_check_suites_async(commit_sha, on_read)
             buffer = buffer .. data
         end
         if data == nil then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -1420,7 +1429,7 @@ function M.get_check_suites_async(commit_sha, on_read)
         vim.schedule(
             function()
                 if data ~= nil then
-                    data = vim.json.decode(buffer)
+                    data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
                         on_read(err, nil)
@@ -1460,7 +1469,7 @@ function M.get_check_runs_by_suite(suite_id, on_read)
             buffer = buffer .. data
         end
         if data == nil then
-            data = vim.json.decode(buffer)
+            data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
                 on_read(err, nil)
@@ -1473,7 +1482,7 @@ function M.get_check_runs_by_suite(suite_id, on_read)
         vim.schedule(
             function()
                 if data ~= nil then
-                    data = vim.json.decode(buffer)
+                    data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
                         on_read(err, nil)
