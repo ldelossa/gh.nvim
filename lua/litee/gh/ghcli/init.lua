@@ -1,10 +1,8 @@
-local lib_notify    = require('litee.lib.notify')
-
 local graphql = require('litee.gh.ghcli.graphql')
 
 local M = {}
 
-function json_decode_safe(output)
+local function json_decode_safe(output)
     local success, decoded = pcall(function () return vim.json.decode(output) end)
     if success then
         return decoded
@@ -33,7 +31,7 @@ local function gh_exec(cmd, no_json_decode)
     return tbl, ""
 end
 
-local function check_error(data) 
+local function check_error(data)
     if data["errors"] ~= nil then
         for _, e in ipairs(data["errors"]) do
             return e["type"]
@@ -45,156 +43,77 @@ local function check_error(data)
     return false
 end
 
+local function async_request(args, on_read)
+    local buffer = ""
+    local stdout = vim.loop.new_pipe()
+    local stderr = vim.loop.new_pipe()
+    local handle = nil
+    handle = vim.loop.spawn('gh', {
+        args = args,
+        stdio = {nil, stdout, stderr},
+        },
+        function()
+            stdout:read_stop()
+            stderr:read_stop()
+            stdout:close()
+            stderr:close()
+            handle:close()
+        end
+    )
+    vim.loop.read_start(stdout, function(err, data)
+        if err then
+            return err, nil
+        end
+        if data then
+            buffer = buffer .. data
+        end
+        if data == nil then
+            data = json_decode_safe(buffer)
+            err = check_error(data)
+            if err ~= false then
+                on_read(err, nil)
+                return
+            end
+            on_read(false, data)
+        end
+    end)
+    vim.loop.read_start(stderr, function(_, data)
+        vim.schedule(
+            function()
+                if err then
+                    return err, nil
+                end
+                if data ~= nil then
+                    data = json_decode_safe(buffer)
+                    local err = check_error(data)
+                    if err ~= false then
+                        on_read(err, nil)
+                        return
+                    end
+                    on_read("UNKNOWN", data)
+                end
+            end)
+    end)
+end
+
 function M.get_user()
     local cmd = [[gh api "/user"]]
     return gh_exec(cmd)
 end
 
 function M.list_collaborators_async(on_read)
-    local buffer = ""
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
-    handle = vim.loop.spawn('gh', {
-        args = {"api", "--paginate", "/repos/{owner}/{repo}/collaborators"},
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-                lib_notify.notify_popup_with_timeout("Failed to fetch GitHub user.", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            on_read(false, data)
-        end
-    end)
-    vim.loop.read_start(stderr, function(_, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        on_read(err, nil)
-                        return
-                    end
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    local args = {"api", "--paginate", "/repos/{owner}/{repo}/collaborators"}
+    async_request(args, on_read)
 end
 
 function M.list_repo_issues_async(on_read)
-    local buffer = ""
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
-    handle = vim.loop.spawn('gh', {
-        args = {"api", "-X", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/issues"},
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-                lib_notify.notify_popup_with_timeout("Failed to fetch GitHub user.", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            on_read(false, data)
-        end
-    end)
-    vim.loop.read_start(stderr, function(_, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        on_read(err, nil)
-                        return
-                    end
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    local args = {"api", "-X", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/issues"}
+    async_request(args, on_read)
 end
 
 function M.get_user_async(on_read)
-    local buffer = ""
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
-    handle = vim.loop.spawn('gh', {
-        args = {"api", "/user"},
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-                lib_notify.notify_popup_with_timeout("Failed to fetch GitHub user.", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            on_read(false, data)
-        end
-    end)
-    vim.loop.read_start(stderr, function(_, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        on_read(err, nil)
-                        return
-                    end
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    local args = {"api", "/user"}
+    async_request(args, on_read)
 end
 
 
@@ -204,52 +123,8 @@ function M.get_pull_files(number)
 end
 
 function M.get_pull_files_async(pull_number, on_read)
-    local buffer = ""
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
-    handle = vim.loop.spawn('gh', {
-        args = {"api", "--paginate", string.format("/repos/{owner}/{repo}/pulls/%d/files", pull_number)},
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-            lib_notify.notify_popup_with_timeout("Failed to fetch pull request files.", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            on_read(false, data)
-        end
-    end)
-    vim.loop.read_start(stderr, function(_, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        on_read(err, nil)
-                        return
-                    end
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    local args = {"api", "--paginate", string.format("/repos/{owner}/{repo}/pulls/%d/files", pull_number)}
+    async_request(args, on_read)
 end
 
 -- lists all pull requests for the repo in `cwd`
@@ -269,108 +144,16 @@ function M.get_pull(number)
 end
 
 function M.get_pull_async(pull_number, on_read)
-    local buffer = ""
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
-    handle = vim.loop.spawn('gh', {
-        args = {"api", "/repos/{owner}/{repo}/pulls/" .. pull_number},
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-            lib_notify.notify_popup_with_timeout("Failed to fetch pull request.", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            on_read(false, data)
-        end
-    end)
-    vim.loop.read_start(stderr, function(err, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        on_read(err, nil)
-                        return
-                    end
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    local args = {"api", "/repos/{owner}/{repo}/pulls/" .. pull_number}
+    async_request(args, on_read)
 end
 
 function M.list_pulls_async(on_read)
-    local buffer = ""
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
-    handle = vim.loop.spawn('gh', {
-        args = {"api", "-X", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/pulls/"},
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-            lib_notify.notify_popup_with_timeout("Failed to fetch pull request.", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            on_read(false, data)
-        end
-    end)
-    vim.loop.read_start(stderr, function(err, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        on_read(err, nil)
-                        return
-                    end
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    local args = {"api", "-X", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/pulls/"}
+    async_request(args, on_read)
 end
 
 function M.update_issue_body_async(number, body, on_read)
-    local buffer = ""
-    body = vim.fn.substitute(body, "'", "", "g")
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
     local args = {
         'api',
         "-X",
@@ -379,56 +162,10 @@ function M.update_issue_body_async(number, body, on_read)
         '-f',
         string.format([[body=%s]], body)
     }
-    handle = vim.loop.spawn('gh', {
-        args = args,
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-            lib_notify.notify_popup_with_timeout("Failed to update issue body.", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            on_read(false, data)
-        end
-    end)
-    vim.loop.read_start(stderr, function(err, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        on_read(err, nil)
-                        return
-                    end
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    async_request(args, on_read)
 end
 
 function M.update_pull_body_async(pull_number, body, on_read)
-    local buffer = ""
-    body = vim.fn.substitute(body, "'", "", "g")
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
     local args = {
         'api',
         "-X",
@@ -437,49 +174,7 @@ function M.update_pull_body_async(pull_number, body, on_read)
         '-f',
         string.format([[body=%s]], body)
     }
-    handle = vim.loop.spawn('gh', {
-        args = args,
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-            lib_notify.notify_popup_with_timeout("Failed to fetch pull request.", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            on_read(false, data)
-        end
-    end)
-    vim.loop.read_start(stderr, function(err, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        on_read(err, nil)
-                        return
-                    end
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    async_request(args, on_read)
 end
 
 -- get a list of commits for the provided pull request.
@@ -491,52 +186,8 @@ function M.get_pull_commits(number)
 end
 
 function M.get_pull_commits_async(pull_number, on_read)
-    local buffer = ""
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
-    handle = vim.loop.spawn('gh', {
-        args = {"api", "--paginate",  string.format([[/repos/{owner}/{repo}/pulls/%d/commits]], pull_number)},
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-            lib_notify.notify_popup_with_timeout("Failed to fetch commits.", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            on_read(false, data)
-        end
-    end)
-    vim.loop.read_start(stderr, function(err, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        on_read(err, nil)
-                        return
-                    end
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    local args = {"api", "--paginate",  string.format([[/repos/{owner}/{repo}/pulls/%d/commits]], pull_number)}
+    async_request(args, on_read)
 end
 
 -- get the details of a commit including the files changed.
@@ -577,9 +228,6 @@ function M.get_pull_issue_comments(number)
 end
 
 function M.get_pull_issue_comments_async(pull_number, on_read)
-    local buffer = ""
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
     local args = {
         'api',
         '--paginate',
@@ -593,49 +241,7 @@ function M.get_pull_issue_comments_async(pull_number, on_read)
         '-f',
         string.format('query=%s', graphql.issue_comments_query)
     }
-    handle = vim.loop.spawn('gh', {
-        args = args,
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-            lib_notify.notify_popup_with_timeout("Failed to fetch issue comments.", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            on_read(false, data)
-        end
-    end)
-    vim.loop.read_start(stderr, function(_, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        on_read(err, nil)
-                        return
-                    end
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    async_request(args, on_read)
 end
 
 function M.create_pull_issue_comment(number, body)
@@ -714,115 +320,22 @@ function M.get_pull_review_threads(pull_number)
 end
 
 function M.get_issue_async(number, on_read)
-    local buffer = ""
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
     local args = {
         'api',
         '/repos/{owner}/{repo}/issues/' .. number
     }
-    handle = vim.loop.spawn('gh', {
-        args = args,
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-            lib_notify.notify_popup_with_timeout("Failed to fetch review threads.", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            on_read(false, data)
-        end
-    end)
-    vim.loop.read_start(stderr, function(_, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        on_read(err, nil)
-                        return
-                    end
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    async_request(args, on_read)
 end
 
 function M.get_issue_comments_async(number, on_read)
-    local buffer = ""
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
     local args = {
         'api',
         '/repos/{owner}/{repo}/issues/' .. number .. '/comments'
     }
-    handle = vim.loop.spawn('gh', {
-        args = args,
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-            lib_notify.notify_popup_with_timeout("Failed to fetch issue comments", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            on_read(false, data)
-        end
-    end)
-    vim.loop.read_start(stderr, function(_, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        on_read(err, nil)
-                        return
-                    end
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    async_request(args, on_read)
 end
 
 function M.get_review_threads_async(pull_number, on_read)
-    local buffer = ""
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
     local args = {
         'api',
         '--paginate',
@@ -836,54 +349,7 @@ function M.get_review_threads_async(pull_number, on_read)
         '-f',
         string.format('query=%s', graphql.review_threads_query)
     }
-    handle = vim.loop.spawn('gh', {
-        args = args,
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            on_read(false, data)
-        end
-    end)
-    vim.loop.read_start(stderr, function(_, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        on_read(err, nil)
-                        return
-                    end
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    async_request(args, on_read)
 end
 
 function M.resolve_thread(thread_id)
@@ -1013,58 +479,11 @@ function M.list_review(pull_number)
 end
 
 function M.list_reviews_async(pull_number, on_read)
-    local buffer = ""
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
-    handle = vim.loop.spawn('gh', {
-        args = {"api", string.format("/repos/{owner}/{repo}/pulls/%d/reviews", pull_number)},
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-            lib_notify.notify_popup_with_timeout("Failed to list reviews.", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            on_read(false, data)
-        end
-    end)
-    vim.loop.read_start(stderr, function(_, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        on_read(err, nil)
-                        return
-                    end
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    local args = {"api", string.format("/repos/{owner}/{repo}/pulls/%d/reviews", pull_number)}
+    async_request(args, on_read)
 end
 
 function M.add_reaction(id, reaction, on_read)
-    local buffer = ""
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
     local args = {
         'api',
         '--paginate',
@@ -1076,55 +495,10 @@ function M.add_reaction(id, reaction, on_read)
         '-f',
         string.format('query=%s', graphql.add_reaction)
     }
-    handle = vim.loop.spawn('gh', {
-        args = args,
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-            lib_notify.notify_popup_with_timeout("Failed to add reaction", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            on_read(false, data)
-        end
-    end)
-    vim.loop.read_start(stderr, function(_, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        on_read(err, nil)
-                        return
-                    end
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    async_request(args, on_read)
 end
 
 function M.remove_reaction_async(id, reaction, on_read)
-    local buffer = ""
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
     local args = {
         'api',
         '--paginate',
@@ -1136,49 +510,7 @@ function M.remove_reaction_async(id, reaction, on_read)
         '-f',
         string.format('query=%s', graphql.remove_reaction)
     }
-    handle = vim.loop.spawn('gh', {
-        args = args,
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-            lib_notify.notify_popup_with_timeout("Failed to add reaction", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            on_read(false, data)
-        end
-    end)
-    vim.loop.read_start(stderr, function(_, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        on_read(err, nil)
-                        return
-                    end
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    async_request(args, on_read)
 end
 
 function M.get_pending_review(pull_number, username)
@@ -1248,62 +580,14 @@ function M.submit_review(pull_number, review_id, body, event)
 end
 
 function M.list_labels_async(on_read)
-    local buffer = ""
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
     local args = {
         'api',
         '/repos/{owner}/{repo}/labels'
     }
-    handle = vim.loop.spawn('gh', {
-        args = args,
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-            lib_notify.notify_popup_with_timeout("Failed to add reaction", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            on_read(false, data)
-        end
-    end)
-    vim.loop.read_start(stderr, function(_, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        on_read(err, nil)
-                        return
-                    end
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    async_request(args, on_read)
 end
 
 function M.add_label_async(number, label, on_read)
-    local buffer = ""
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
     local args = {
         "issue",
         "edit",
@@ -1311,43 +595,10 @@ function M.add_label_async(number, label, on_read)
         "--add-label",
         label
     }
-    handle = vim.loop.spawn('gh', {
-        args = args,
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-            lib_notify.notify_popup_with_timeout("Failed to add reaction", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            on_read(false, buffer)
-        end
-    end)
-    vim.loop.read_start(stderr, function(_, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    async_request(args, on_read)
 end
 
 function M.remove_label_async(number, label, on_read)
-    local buffer = ""
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
     local args = {
         "issue",
         "edit",
@@ -1355,143 +606,23 @@ function M.remove_label_async(number, label, on_read)
         "--remove-label",
         label
     }
-    handle = vim.loop.spawn('gh', {
-        args = args,
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-            lib_notify.notify_popup_with_timeout("Failed to add reaction", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            on_read(false, buffer)
-        end
-    end)
-    vim.loop.read_start(stderr, function(_, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    async_request(args, on_read)
 end
 
 function M.get_check_suites_async(commit_sha, on_read)
-    local buffer = ""
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
     local args = {
         'api',
         string.format("/repos/{owner}/{repo}/commits/%s/check-suites", commit_sha)
     }
-    handle = vim.loop.spawn('gh', {
-        args = args,
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-            lib_notify.notify_popup_with_timeout("Failed to fetch check suites", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            on_read(false, data)
-        end
-    end)
-    vim.loop.read_start(stderr, function(_, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        on_read(err, nil)
-                        return
-                    end
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    async_request(args, on_read)
 end
 
-function M.get_check_runs_by_suite(suite_id, on_read) 
-    local buffer = ""
-    local stdout = vim.loop.new_pipe()
-    local stderr = vim.loop.new_pipe()
+function M.get_check_runs_by_suite(suite_id, on_read)
     local args = {
         'api',
         string.format("/repos/{owner}/{repo}/check-suites/%s/check-runs", suite_id)
     }
-    handle = vim.loop.spawn('gh', {
-        args = args,
-        stdio = {nil, stdout, stderr},
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
-        end
-    })
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-            lib_notify.notify_popup_with_timeout("Failed to fetch check-runs", 7500, "error")
-            return
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
-                on_read(err, nil)
-                return
-            end
-            on_read(false, data)
-        end
-    end)
-    vim.loop.read_start(stderr, function(_, data)
-        vim.schedule(
-            function()
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        on_read(err, nil)
-                        return
-                    end
-                    on_read("UNKNOWN", data)
-                end
-            end)
-    end)
+    async_request(args, on_read)
 end
 
 return M
