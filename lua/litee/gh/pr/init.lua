@@ -294,7 +294,7 @@ function M.close_pr_commits(ctx)
     if ctx == nil then
          ctx = ui_req_ctx()
     end
-    if ctx.state["pr_files"] == nil then
+    if ctx.state == nil or ctx.state["pr_files"] == nil then
         return
     end
     if ctx.state["pr_files"].win ~= nil then
@@ -319,7 +319,7 @@ function M.close_pr_review(ctx)
     if ctx == nil then
          ctx = ui_req_ctx()
     end
-    if ctx.state["pr_files"] == nil then
+    if ctx.state == nil or ctx.state["pr_review"] == nil then
         return
     end
     if ctx.state["pr_review"].win ~= nil then

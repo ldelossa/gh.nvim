@@ -49,9 +49,9 @@ function M.setup()
     -- close a PR and cleanup any state associated with it (happens on tab and neovim close as well)
     vim.api.nvim_create_user_command("GHClosePR", pr.close_pull, {})
     -- close the Commit panel
-    vim.api.nvim_create_user_command("GHCloseCommit", pr.close_pr_commits, {})
+    vim.api.nvim_create_user_command("GHCloseCommit", function() pr.close_pr_commits(nil) end, {})
     -- close the Review panel
-    vim.api.nvim_create_user_command("GHCloseReview", pr.close_pr_review, {})
+    vim.api.nvim_create_user_command("GHCloseReview", function () pr.close_pr_review(nil) end, {})
     -- preview the issue or pull request number under the cursor
     vim.api.nvim_create_user_command("GHPreviewIssue", helpers.preview_issue_under_cursor, {})
     -- Add a label to the currently opened pull request.

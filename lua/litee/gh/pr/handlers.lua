@@ -263,7 +263,11 @@ function M.review_handler(review_id, refresh)
         and vim.api.nvim_win_is_valid(state.win)
         and state.buf ~= nil
         and vim.api.nvim_buf_is_valid(state.buf))
-        or refresh
+        or (refresh
+            and state.win ~= nil
+            and vim.api.nvim_win_is_valid(state.win)
+            and state.buf ~= nil
+            and vim.api.nvim_buf_is_valid(state.buf))
     then
         cursor = vim.api.nvim_win_get_cursor(state.win)
         lib_tree.write_tree_no_guide_leaf(
@@ -372,7 +376,11 @@ function M.commits_handler(sha, refresh)
         and vim.api.nvim_win_is_valid(state.win)
         and state.buf ~= nil
         and vim.api.nvim_buf_is_valid(state.buf))
-        or refresh
+        or (refresh
+            and state.win ~= nil
+            and vim.api.nvim_win_is_valid(state.win)
+            and state.buf ~= nil
+            and vim.api.nvim_buf_is_valid(state.buf))
     then
         cursor = vim.api.nvim_win_get_cursor(state.win)
         lib_tree.write_tree_no_guide_leaf(
