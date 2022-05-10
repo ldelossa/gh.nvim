@@ -1,7 +1,7 @@
 local M = {}
 
 M.config = {
-    icon_set    = "codicons",
+    icon_set    = "default",
     jump_mode   = "invoking",
     map_resize_keys = false,
     disable_keymaps = false,

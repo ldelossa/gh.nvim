@@ -59,11 +59,6 @@ function GH_completion(start, base)
     end
 end
 
-local icon_set = {}
-if config.icon_set ~= nil then
-    icon_set = lib_icons[config.icon_set]
-end
-
 local M = {}
 
 M.periodic_refresh = nil

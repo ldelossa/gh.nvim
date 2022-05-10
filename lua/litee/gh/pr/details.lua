@@ -5,23 +5,21 @@ local config        = require('litee.gh.config').config
 
 local M = {}
 
-local icon_set = {}
-if config.icon_set ~= nil then
-    icon_set = lib_icons[config.icon_set]
-end
-
 local symbols = {
     top =    "╭",
     left =   "│",
     bottom = "╰",
     tab = "  ",
-    author =  icon_set["Account"]
 }
 
 local function parse_comment(author, body, left_sign, bottom_sign)
+    local icon_set = "default"
+    if config.icon_set ~= nil then
+        icon_set = lib_icons[config.icon_set]
+    end
     local lines = {}
     if author ~= nil then
-        table.insert(lines, string.format("%s %s  %s", symbols.top, symbols.author, author))
+        table.insert(lines, string.format("%s %s  %s", symbols.top, icon_set["Account"], author))
     end
     body = vim.fn.split(body, '\n')
     for _, line in ipairs(body) do
@@ -94,6 +92,10 @@ end
 -- @return node (table) the root node of the details sub-tree with children
 -- attached.
 function M.build_details_tree(pull, depth, prev_tree)
+    if config.icon_set ~= nil then
+        icon_set = lib_icons[config.icon_set]
+    end
+
     local prev_root = nil
     if prev_tree ~= nil and prev_tree.depth_table[depth] ~= nil then
         for _, prev_node in ipairs(prev_tree.depth_table[depth]) do

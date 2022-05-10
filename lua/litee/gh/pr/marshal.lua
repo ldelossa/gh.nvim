@@ -5,7 +5,7 @@ local s = require('litee.gh.pr.state')
 local M = {}
 
 function M.marshal_pr_review_node(node)
-    local icon_set = {}
+    local icon_set = "default"
     if config.icon_set ~= nil then
         icon_set = lib_icons[config.icon_set]
     end
@@ -73,7 +73,7 @@ function M.marshal_pr_review_node(node)
 end
 
 function M.marshal_pr_commit_node(node)
-    local icon_set = nil
+    local icon_set = "default"
     if config.icon_set ~= nil then
         icon_set = lib_icons[config.icon_set]
     end
@@ -190,7 +190,7 @@ function M.marshal_pr_commit_node(node)
 end
 
 function M.marshal_pr_file_node(node)
-    local icon_set = nil
+    local icon_set = "default"
     if config.icon_set ~= nil then
         icon_set = lib_icons[config.icon_set]
     end

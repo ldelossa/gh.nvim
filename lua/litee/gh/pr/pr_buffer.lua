@@ -35,17 +35,11 @@ local function reset_state()
     state.creating_comment = nil
 end
 
-local icon_set = {}
-if config.icon_set ~= nil then
-    icon_set = lib_icons[config.icon_set]
-end
-
 local symbols = {
     top =    "╭",
     left =   "│",
     bottom = "╰",
     tab = "  ",
-    author =  icon_set["Account"]
 }
 
 local function comment_rest_id(comment)
@@ -222,6 +216,9 @@ local function find_win()
 end
 
 function M.render_comments()
+    if config.icon_set ~= nil then
+        icon_set = lib_icons[config.icon_set]
+    end
     if state.buf == nil or not vim.api.nvim_buf_is_valid(state.buf) then
         setup_buffer()
     end

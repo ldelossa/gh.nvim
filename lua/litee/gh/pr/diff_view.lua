@@ -12,7 +12,7 @@ local gitcli        = require('litee.gh.gitcli')
 
 -- setup the signs used within our diffsplit view.
 local function init()
-    local icon_set = nil
+    local icon_set = "default"
     if config.icon_set ~= nil then
         icon_set = lib_icons[config.icon_set]
     end

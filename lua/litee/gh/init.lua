@@ -207,6 +207,24 @@ local function register_pr_review_component()
     lib_panel.register_component("pr_review", pre_window_create, post_window_create)
 end
 
+local function merge_configs(user_config)
+    -- merge keymaps
+    if user_config.keymaps ~= nil then
+        for k, v in pairs(user_config.keymaps) do
+            config.keymaps[k] = v
+        end
+    end
+
+    -- merge top levels
+    for k, v in pairs(user_config) do
+        if k == "keymaps" then
+            goto continue
+        end
+        config[k] = v
+        ::continue::
+    end
+end
+
 function M.setup(user_config)
     if not pcall(require, "litee.lib") then
         lib_notify.notify_popup_with_timeout("Cannot start litee-gh without the litee.lib library.", 1750, "error")
@@ -216,6 +234,11 @@ function M.setup(user_config)
     if vim.fn.executable("gh") == 0 then
         lib_notify.notify_popup_with_timeout("The 'gh' CLI tool must be installed to use gh.nvim", 1750, "error")
         return
+    end
+
+    -- merge in config
+    if user_config ~= nil then
+        merge_configs(user_config)
     end
 
     register_pr_component()

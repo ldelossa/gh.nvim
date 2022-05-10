@@ -186,6 +186,10 @@ end
 
 -- render comment will render a comment object into buffer lines.
 local function render_comment(comment, thread_stale)
+    if config.icon_set ~= nil then
+        icon_set = lib_icons[config.icon_set]
+    end
+
     local lines = {}
     local reaction_lines = count_reactions(comment)
     local reaction_string = ""
@@ -194,7 +198,7 @@ local function render_comment(comment, thread_stale)
     end
 
     local author = comment.comment["author"]["login"]
-    local title = string.format("%s %s  %s", symbols.top, symbols.author, author)
+    local title = string.format("%s %s  %s", symbols.top, icon_set["Account"], author)
     if thread_stale then
         title = title .. " [outdated]"
     elseif comment.comment["state"] == "PENDING" then
@@ -216,6 +220,9 @@ local function render_comment(comment, thread_stale)
 end
 
 function M.create_thread(details)
+    if config.icon_set ~= nil then
+        icon_set = lib_icons[config.icon_set]
+    end
     if state.buf == nil or not vim.api.nvim_buf_is_valid(state.buf) then
         setup_buffer()
     end
@@ -227,7 +234,7 @@ function M.create_thread(details)
     vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, {})
 
     local buffer_lines = {}
-    table.insert(buffer_lines, string.format("%s  %s", symbols.author, "Create your new comment below... (ctrl-s to submit)"))
+    table.insert(buffer_lines, string.format("%s  %s", icon_set["Account"], "Create your new comment below... (ctrl-s to submit)"))
     state.text_area_off = #buffer_lines
     table.insert(buffer_lines, "")
     vim.api.nvim_buf_set_lines(state.buf, 0, #buffer_lines, false, buffer_lines)
@@ -242,6 +249,9 @@ function M.create_thread(details)
 end
 
 function M.render_thread(thread_id, n_of, displayed_thread)
+    if config.icon_set ~= nil then
+        icon_set = lib_icons[config.icon_set]
+    end
     if state.buf == nil or not vim.api.nvim_buf_is_valid(state.buf) then
         setup_buffer()
     end
@@ -350,7 +360,7 @@ function M.render_thread(thread_id, n_of, displayed_thread)
 
     -- leave room for the user to reply.
     table.insert(buffer_lines, "")
-    table.insert(buffer_lines, string.format("%s  %s", symbols.author, "Add a reply below..."))
+    table.insert(buffer_lines, string.format("%s  %s", icon_set["Account"], "Add a reply below..."))
     -- record the offset to our reply message, we'll allow editing here
     state.text_area_off = #buffer_lines
     table.insert(buffer_lines, "")
@@ -413,6 +423,9 @@ end
 -- find the comment at the cursor, replace the "Reply" message with an "Edit"
 -- message and
 function M.edit_comment()
+    if config.icon_set ~= nil then
+        icon_set = lib_icons[config.icon_set]
+    end
     local comment = comment_under_cursor()
     if comment == nil then
         return
@@ -425,7 +438,7 @@ function M.edit_comment()
         return
     end
 
-    table.insert(lines, string.format("%s  %s", symbols.author, "Edit the message below..."))
+    table.insert(lines, string.format("%s  %s", icon_set["Account"], "Edit the message below..."))
     for _, line in ipairs(parse_comment_body(comment.comment["body"], false)) do
         table.insert(lines, line)
     end
