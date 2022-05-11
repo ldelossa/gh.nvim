@@ -133,6 +133,15 @@ Code Review Environment:
     on the underlying repository, however just to be sure, especially while GH.nvim
     is in beta, its suggested to use the worktree approach.
 
+    Additionally, you must be aware of how git will fetch a repository. 
+
+    By default gh.nvm will use the ssh url when it adds a remote. 
+
+    You must have ssh keys configured in GitHub for this to work correctly.
+
+    Alternatively you can use the "prefer_https_remote" config flag to utilize
+    the https clone address.
+
 Configuration:
     A simplest possible configuration, using all the defaults, will look like 
     this:
@@ -330,15 +339,36 @@ Conf                                                                     *gh-con
 Below is the default configuration.
 
 M.config = {
+    -- the icon set to use from litee.nvim. 
+    -- "nerd", "codicons", "default" 
     icon_set    = "codicons",
+    -- deprecated, around for compatability for now.
     jump_mode   = "invoking",
-    map_resize_keys = true,
+    -- remap the arrow keys to resize any litee.nvim windows.
+    map_resize_keys = false,
+    -- by default gh.nvim adds the remote of the pull request's HEAD as an
+    -- ssh_url. If you do not have ssh keys configured in GitHub this flag will
+    -- use the https clone address instead. 
+    --
+    -- be aware, for gh.nvim to work correctly with private repositories, you 
+    -- should configure ssh keys and use the default settings. gh.nvim will not
+    -- prompt for https authentication.
+    prefer_https_remote = false,
+    -- do not map any keys inside any gh.nvim buffers.
     disable_keymaps = false,
+    -- defines keymaps in gh.nvim buffers.
     keymaps = {
+        -- used to open a node in a gh.nvim tree
         open = "<CR>",
+        -- expand a node in a gh.nvim tree
         expand = "zo",
+        -- collapse the node in a gh.nvim tree
         collapse = "zc",
+        -- when cursor is ontop of a '#123' formatted issue reference, open a 
+        -- new tab with the issue details and comments.
         goto_issue = "gd",
+        -- show details associated with a node, for example the commit message
+        -- for a commit node in the gh.nvim tree.
         details = "d"
     },
 }

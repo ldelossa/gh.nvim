@@ -5,6 +5,7 @@ M.config = {
     jump_mode   = "invoking",
     map_resize_keys = false,
     disable_keymaps = false,
+    prefer_https_remote = true,
     keymaps = {
         open = "<CR>",
         expand = "zo",

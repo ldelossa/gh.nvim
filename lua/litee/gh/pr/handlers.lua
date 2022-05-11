@@ -11,7 +11,7 @@ local details       = require('litee.gh.pr.details')
 local commits       = require('litee.gh.pr.commits')
 local conversations = require('litee.gh.pr.conversations')
 local comments      = require('litee.gh.pr.comments')
-local config        = require('litee.gh.config')
+local config        = require('litee.gh.config').config
 local ghcli         = require('litee.gh.ghcli')
 local gitcli        = require('litee.gh.gitcli')
 local marshaller    = require('litee.gh.pr.marshal')
@@ -38,7 +38,12 @@ function M.ui_handler(refresh, on_load_ui)
 
     -- refresh var from closure.
     if not refresh then
-        local ssh_url = s.pull_state.pr_raw["head"]["repo"]["ssh_url"]
+        local remote_url = ""
+        if config.prefer_https_remote then
+            remote_url = s.pull_state.pr_raw["head"]["repo"]["clone_url"]
+        else
+            remote_url = s.pull_state.pr_raw["head"]["repo"]["ssh_url"]
+        end
         local remote_name = "litee-gh_" .. s.pull_state.pr_raw["head"]["repo"]["full_name"]
         local head_branch = s.pull_state.pr_raw["head"]["ref"]
 
@@ -52,9 +57,9 @@ function M.ui_handler(refresh, on_load_ui)
         -- name.
         --
         -- if it exists the remote name is returned turned.
-        local ok, remote = gitcli.remote_exists(ssh_url)
+        local ok, remote = gitcli.remote_exists(remote_url)
         if not ok then
-            local out = gitcli.add_remote(remote_name, ssh_url)
+            local out = gitcli.add_remote(remote_name, remote_url)
             if out == nil then
                 lib_notify.notify_popup_with_timeout("Failed to add remote git repository.", 7500, "error")
                 return
