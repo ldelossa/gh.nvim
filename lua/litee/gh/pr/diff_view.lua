@@ -10,8 +10,14 @@ local s             = require('litee.gh.pr.state')
 local thread_buffer = require('litee.gh.pr.thread_buffer')
 local gitcli        = require('litee.gh.gitcli')
 
+-- works as a "once" flag to lazy init signs.
+local init_done = false
+
 -- setup the signs used within our diffsplit view.
 local function init()
+    if init_done then
+        return
+    end
     local icon_set = "default"
     if config.icon_set ~= nil then
         icon_set = lib_icons[config.icon_set]
@@ -23,8 +29,8 @@ local function init()
     vim.fn.sign_define("gh-comment-resolved", {text=icon_set["Comment"], texthl = "LTSuccess"})
     vim.fn.sign_define("gh-comment-pending", {text=icon_set["Comment"], texthl = "LTWarning"})
     vim.fn.sign_define("gh-can-comment", {text=icon_set["DiffAdded"], texthl = "LTDiffAdd"})
+    init_done = true
 end
-init()
 
 local state = {
     -- the file that is currently being diffed
@@ -117,6 +123,7 @@ end
 -- this should only be called when the caller knows a valid diffsplit has been
 -- setup.
 local function diffsplit_sign_place()
+    init()
     if state.threads == nil then
         vim.fn.sign_unplace("gh-comments")
         return
