@@ -180,6 +180,11 @@ local function count_reactions(comment)
 end
 
 local function render_comment(comment)
+    local icon_set = "default"
+    if config.icon_set ~= nil then
+        icon_set = lib_icons[config.icon_set]
+    end
+
     local lines = {}
     local reaction_lines = count_reactions(comment)
     local reaction_string = ""
@@ -188,7 +193,7 @@ local function render_comment(comment)
     end
 
     local author = comment.issue_comment["author"]["login"]
-    local title = string.format("%s %s  %s", symbols.top, symbols.author, author)
+    local title = string.format("%s %s  %s", symbols.top, icon_set["Account"], author)
     table.insert(lines, title)
 
     table.insert(lines, symbols.left)
@@ -216,6 +221,7 @@ local function find_win()
 end
 
 function M.render_comments()
+    local icon_set = "default"
     if config.icon_set ~= nil then
         icon_set = lib_icons[config.icon_set]
     end
@@ -295,7 +301,7 @@ function M.render_comments()
 
     -- leave room for the user to reply.
     table.insert(buffer_lines, "")
-    table.insert(buffer_lines, string.format("%s  %s", symbols.author, "Add a comment below..."))
+    table.insert(buffer_lines, string.format("%s  %s", icon_set["Account"], "Add a comment below..."))
     -- record the offset to our reply message, we'll allow editing here
     state.text_area_off = #buffer_lines
     table.insert(buffer_lines, "")
@@ -356,6 +362,11 @@ local function comment_under_cursor()
 end
 
 function M.edit_pr_body(pr)
+    local icon_set = "default"
+    if config.icon_set ~= nil then
+        icon_set = lib_icons[config.icon_set]
+    end
+
     if pr["author_association"] ~=  "OWNER" then
         lib_notify.notify_popup_with_timeout("Cannot edit a pull request you did not author.", 7500, "error")
         return
@@ -363,7 +374,7 @@ function M.edit_pr_body(pr)
 
     local lines = {}
 
-    table.insert(lines, string.format("%s  %s", symbols.author, "Edit the pull request's body below..."))
+    table.insert(lines, string.format("%s  %s", icon_set["Account"], "Edit the pull request's body below..."))
     for _, line in ipairs(parse_comment_body(pr["body"], false)) do
         table.insert(lines, line)
     end
@@ -385,6 +396,11 @@ end
 -- find the comment at the cursor, replace the "Reply" message with an "Edit"
 -- message and
 function M.edit_comment()
+    local icon_set = "default"
+    if config.icon_set ~= nil then
+        icon_set = lib_icons[config.icon_set]
+    end
+
     local comment = comment_under_cursor()
     if comment == nil then
         return
@@ -397,7 +413,7 @@ function M.edit_comment()
         return
     end
 
-    table.insert(lines, string.format("%s  %s", symbols.author, "Edit the message below..."))
+    table.insert(lines, string.format("%s  %s", icon_set["Account"], "Edit the message below..."))
     for _, line in ipairs(parse_comment_body(comment.issue_comment["body"], false)) do
         table.insert(lines, line)
     end
