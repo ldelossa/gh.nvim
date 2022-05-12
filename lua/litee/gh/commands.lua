@@ -7,7 +7,7 @@ local M = {}
 
 function M.setup()
     -- use a vim.ui.select prompt to open one of the first 100 pull requests.
-    vim.api.nvim_create_user_command("GHOpenPR", pr.open_pull, {})
+    vim.api.nvim_create_user_command("GHOpenPR", pr.open_pull, {nargs="?"})
     -- open the Pull Request panel in the side bar panel
     vim.api.nvim_create_user_command("GHOpenToPR", pr.open_to_pr, {})
     -- open the Pull Request panel in a pop out window
@@ -45,7 +45,7 @@ function M.setup()
     -- when cursor is on a commented line of a diff view, move to the next convo buffer
     vim.api.nvim_create_user_command("GHNextThread", dv.next_thread, {})
     -- when cursor is on a line which can be commented in a diff view, create a comment
-    vim.api.nvim_create_user_command("GHCreateThread", dv.create_comment, {})
+    vim.api.nvim_create_user_command("GHCreateThread", dv.create_comment, {range=true})
     -- close a PR and cleanup any state associated with it (happens on tab and neovim close as well)
     vim.api.nvim_create_user_command("GHClosePR", pr.close_pull, {})
     -- close the Commit panel

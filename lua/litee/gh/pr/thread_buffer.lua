@@ -50,6 +50,34 @@ local symbols = {
     author =  icon_set["Account"]
 }
 
+local function extract_thread_lines(thread)
+    local start_line = nil
+    local end_line = nil
+    local multiline = false
+    if thread.thread["line"] ~= vim.NIL then
+        start_line = thread.thread["startLine"]
+        end_line = thread.thread["line"]
+        if start_line == vim.NIL then
+            start_line = end_line
+        else
+            multiline = true
+            end_line = end_line - 1
+        end
+        return {start_line-1, end_line, multiline}
+    elseif thread.thread["originalLine"] ~= vim.NIL then
+        start_line = thread.thread["originalStartLine"]
+        end_line = thread.thread["originalLine"]
+        if start_line == vim.NIL then
+            start_line = end_line
+        else
+            multiline = true
+            end_line = end_line - 1
+        end
+        return {start_line-1, end_line, multiline}
+    end
+    return nil
+end
+
 local function comment_rest_id(comment)
     -- extract rest_id from comment, you can get this from the last portion
     -- of url.
@@ -321,6 +349,15 @@ function M.render_thread(thread_id, n_of, displayed_thread)
         line = thread.thread["line"]
     end
 
+    -- grab source code buffer for preview
+    local buf = nil
+    for _, b in ipairs(vim.api.nvim_list_bufs()) do
+        local path = string.format("%s/%s", vim.fn.getcwd(), thread.thread["path"])
+        if vim.api.nvim_buf_get_name(b) == path then
+            buf = b
+        end
+    end
+
     -- render thread header
     table.insert(buffer_lines, string.format("%s %s  Thread [%d/%d]", symbols.top, icon_set["MultiComment"], n_of[1], n_of[2]))
     table.insert(buffer_lines, string.format("%s %s  Author: %s", symbols.left, icon_set["Account"], root_comment.comment["author"]["login"]))
@@ -329,9 +366,37 @@ function M.render_thread(thread_id, n_of, displayed_thread)
     table.insert(buffer_lines, string.format("%s %s  Outdated: %s", symbols.left, icon_set["History"], thread.thread["isOutdated"]))
     table.insert(buffer_lines, string.format("%s %s  Created: %s", symbols.left, icon_set["Calendar"], root_comment.comment["createdAt"]))
     table.insert(buffer_lines, string.format("%s %s  Last Updated: %s", symbols.left, icon_set["Calendar"], root_comment.comment["updatedAt"]))
+
+    -- preview in header
+    local thread_source_lines = extract_thread_lines(thread)
+
+    if
+        buf ~= nil
+        and thread_source_lines ~= nil
+    then
+        local start_line = thread_source_lines[1]
+        local end_line = thread_source_lines[2]
+        local multiline = thread_source_lines[3]
+
+        -- if not a multiline comment, and if we have space, give some context
+        if
+            (start_line - 3) >= 1 and
+            not multiline
+        then
+            start_line = start_line - 3
+        end
+
+        table.insert(buffer_lines, symbols.left)
+        local lines = vim.api.nvim_buf_get_lines(buf, start_line, end_line, true)
+        for i, preview_line in ipairs(lines) do
+            table.insert(buffer_lines, string.format("%s %s %s %s", symbols.left, (start_line + i), "▏", preview_line))
+        end
+    end
+
     table.insert(buffer_lines, symbols.left)
     table.insert(buffer_lines, string.format("%s (ctrl-s:submit)(ctrl-a:comment actions)(ctrl-r:un/resolve)", symbols.bottom))
     table.insert(buffer_lines, "")
+
 
     -- render root comment
     local stale = false
@@ -554,32 +619,65 @@ end
 local function create(body, details)
     -- create non-review related comment
     if s.pull_state.review == nil then
-       local out = ghcli.create_comment(
-           details.pull_number,
-           details.commit_sha,
-           details.path,
-           details.position,
-           details.side,
-           details.line,
-           body
-       )
-       if out == nil then
-           lib_notify.notify_popup_with_timeout("Failed to create new comment.", 7500, "error")
-           return
+       if details.line == details.end_line then
+           local out = ghcli.create_comment(
+               details.pull_number,
+               details.commit_sha,
+               details.path,
+               details.position,
+               details.side,
+               details.line,
+               body
+           )
+           if out == nil then
+               lib_notify.notify_popup_with_timeout("Failed to create new comment.", 7500, "error")
+               return
+           end
+        else
+           local out = ghcli.create_comment_multiline(
+               details.pull_number,
+               details.commit_sha,
+               details.path,
+               details.position,
+               details.side,
+               details.line,
+               details.end_line,
+               body
+           )
+           if out == nil then
+               lib_notify.notify_popup_with_timeout("failed to create new comment.", 7500, "error")
+               return
+           end
        end
     else
     -- create comment within the review
-       local out = ghcli.create_comment_review(
-           s.pull_state.pr_raw["node_id"],
-           s.pull_state.review["node_id"],
-           body,
-           details.path,
-           details.line,
-           details.side
-       )
-       if out == nil then
-           lib_notify.notify_popup_with_timeout("Failed to create new comment.", 7500, "error")
-           return
+       if details.line == details.end_line then
+           local out = ghcli.create_comment_review(
+               s.pull_state.pr_raw["node_id"],
+               s.pull_state.review["node_id"],
+               body,
+               details.path,
+               details.line,
+               details.side
+           )
+           if out == nil then
+               lib_notify.notify_popup_with_timeout("Failed to create new comment.", 7500, "error")
+               return
+           end
+        else
+           local out = ghcli.create_comment_review_multiline(
+               s.pull_state.pr_raw["node_id"],
+               s.pull_state.review["node_id"],
+               body,
+               details.path,
+               details.line,
+               details.end_line,
+               details.side
+           )
+           if out == nil then
+               lib_notify.notify_popup_with_timeout("Failed to create new comment.", 7500, "error")
+               return
+           end
        end
     end
     vim.api.nvim_win_set_buf(0, details.original_buf)
