@@ -131,13 +131,6 @@ local function ui_req_ctx()
     }
 end
 
-function M.open_pull_by_number(number)
-    if number ~= nil then
-        handlers.pr_handler(number, function() M.open_pr_buffer() end)
-        return
-    end
-end
-
 local function start_refresh_timer(now)
     if M.periodic_refresh == nil then
         M.periodic_refresh = vim.loop.new_timer()
@@ -175,12 +168,24 @@ local function on_tab_close()
         callback = M.clean}))
 end
 
+function M.open_pull_by_number(number)
+    if number ~= nil then
+        handlers.pr_handler(number, false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+        return
+    end
+end
+
 -- open_pull is the entry point for a new pull request and review session.
 --
 -- a `vim.ui.select` menu is presented to the user to pick a PR to open,
 -- once picked a new tab is created and the the pr details and commits are
 -- populated in a tree for this tab.
-function M.open_pull()
+function M.open_pull(args)
+    if args["args"] ~= "" then
+        M.open_pull_by_number(args["args"])
+        return
+    end
+
     local prs = ghcli.list_pulls()
     if prs == nil then
         lib_notify.notify_popup_with_timeout("Failed to list PRs", 7500, "error")

@@ -627,7 +627,7 @@ function M.toggle_threads(thread_id)
     }
 end
 
-function M.create_comment()
+function M.create_comment(args)
     -- determine which side we are in
     local cur_win = vim.api.nvim_get_current_win()
     local side = nil
@@ -638,8 +638,10 @@ function M.create_comment()
     else
         return
     end
+
     -- determine current line number
-    local line = vim.api.nvim_win_get_cursor(0)[1]
+    local line = args["line1"]
+    local end_line = args["line2"]
 
     -- do we have a diff mapping for this line?
     local pos = state.lines_to_diff_pos[side][line]
@@ -663,6 +665,7 @@ function M.create_comment()
         position = pos,
         side = side,
         line = line,
+        end_line = end_line,
         original_buf = original_buf
     }
     local buf = thread_buffer.create_thread(details)

@@ -24,6 +24,16 @@ mutation ($pull: ID!, $review: ID!, $body: String!, $path: String!, $line: Int!,
 }
 ]]
 
+M.create_comment_review_multiline = [[
+mutation ($pull: ID!, $review: ID!, $body: String!, $path: String!, $start_line: Int!, $line: Int!, $side: DiffSide!) {
+  addPullRequestReviewThread(
+    input: {pullRequestId: $pull, pullRequestReviewId: $review, body: $body, path: $path, startLine: $start_line, line: $line, startSide: $side, side: $side}
+  ) {
+    clientMutationId
+  }
+}
+]]
+
 M.resolve_thread = [[
 mutation ($thread_id: ID!) {
   resolveReviewThread(input: {threadId: $thread_id}) {

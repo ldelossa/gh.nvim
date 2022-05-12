@@ -393,6 +393,25 @@ function M.create_comment(pull_number, commit_sha, path, position, side, line, b
     return out
 end
 
+function M.create_comment_multiline(pull_number, commit_sha, path, position, side, start_line, line, body)
+    local cmd = string.format([[gh api --method POST -H "Accept: application/vnd.github.v3+json" /repos/{owner}/{repo}/pulls/%d/comments -f commit_id=%s -f path=%s -f start_side=%s -f side=%s -F position=%d -F start_line=%d -F line=%d -f body=%s]],
+        pull_number,
+        commit_sha,
+        path,
+        side,
+        side,
+        position,
+        start_line,
+        line,
+        body
+    )
+    local out = gh_exec(cmd)
+    if out == nil then
+        return nil
+    end
+    return out
+end
+
 -- this is a graphql query so pass use the node_id for each argument that wants
 -- and id.
 function M.create_comment_review(pull_id, review_id, body, path, line, side)
@@ -404,6 +423,27 @@ function M.create_comment_review(pull_id, review_id, body, path, line, side)
         line,
         side,
         graphql.create_comment_review
+    )
+    local resp = gh_exec(cmd)
+    if resp == nil then
+        return nil
+    end
+    return resp
+end
+
+-- this is a graphql query so pass use the node_id for each argument that wants
+-- and id.
+function M.create_comment_review_multiline(pull_id, review_id, body, path, start_line, line, side)
+    local cmd = string.format([[gh api graphql -F pull="%s" -F review="%s" -F body=%s -F path="%s" -F start_line=%d -F line=%d -F start_side=%s -F side=%s -f query='%s']],
+        pull_id,
+        review_id,
+        body,
+        path,
+        start_line,
+        line,
+        side,
+        side,
+        graphql.create_comment_review_multiline
     )
     local resp = gh_exec(cmd)
     if resp == nil then
