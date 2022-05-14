@@ -1,4 +1,5 @@
 local graphql = require('litee.gh.ghcli.graphql')
+local lib_notify = require('litee.lib.notify')
 
 local M = {}
 
@@ -43,11 +44,20 @@ local function check_error(data)
     return false
 end
 
-local function async_request(args, on_read)
+local function async_request(args, on_read, paginate, page, paged_data)
     local buffer = ""
     local stdout = vim.loop.new_pipe()
     local stderr = vim.loop.new_pipe()
     local handle = nil
+    if paginate  then
+        if page ~= nil then
+            args[#args] = "page=" .. page
+        else
+            page = 1
+            table.insert(args, "-F")
+            table.insert(args, "page=" .. page)
+        end
+    end
     handle = vim.loop.spawn('gh', {
         args = args,
         stdio = {nil, stdout, stderr},
@@ -74,7 +84,22 @@ local function async_request(args, on_read)
                 vim.schedule(function() on_read(err, nil) end)
                 return
             end
-            vim.schedule(function() on_read(false, data) end)
+            if paged_data == nil then
+                paged_data = data
+            else
+                for _, i in pairs(data) do
+                    table.insert(paged_data, i)
+                end
+            end
+
+            if paginate then
+                if #data == 100 then
+                    -- paginate
+                    async_request(args, on_read, paginate, page+1, paged_data)
+                    return
+                end
+            end
+            vim.schedule(function() on_read(false, paged_data) end)
         end
     end)
     vim.loop.read_start(stderr, function(err, data)
@@ -90,20 +115,15 @@ local function async_request(args, on_read)
                         vim.schedule(function() on_read(err, nil) end)
                         return
                     end
-                    vim.schedule( function () on_read("UNKNOWN", data) end)
+                    vim.schedule(function () on_read("UNKNOWN", data) end)
                 end
             end)
     end)
 end
 
-function M.get_user()
-    local cmd = [[gh api "/user"]]
-    return gh_exec(cmd)
-end
-
 function M.list_collaborators_async(on_read)
     local args = {"api", "-X", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/collaborators"}
-    async_request(args, on_read)
+    async_request(args, on_read, true)
 end
 
 function M.list_repo_issues_async(on_read)
@@ -116,15 +136,9 @@ function M.get_user_async(on_read)
     async_request(args, on_read)
 end
 
-
-function M.get_pull_files(number)
-    local cmd = string.format([[gh api -X get -F "per_page=100" /repos/{owner}/{repo}/pulls/%d/files]], number)
-    return gh_exec(cmd)
-end
-
 function M.get_pull_files_async(pull_number, on_read)
     local args = {"api", "-X", "GET", "-F", "per_page=100", string.format("/repos/{owner}/{repo}/pulls/%d/files", pull_number)}
-    async_request(args, on_read)
+    async_request(args, on_read, true)
 end
 
 -- lists all pull requests for the repo in `cwd`
@@ -132,14 +146,6 @@ end
 -- return @table: https://docs.github.com/en/rest/reference/pulls#list-pull-requests
 function M.list_pulls()
     local cmd = [[gh pr list --limit 100 --json "number,title,author"]]
-    return gh_exec(cmd)
-end
-
--- get the details of a specific pull request by its number
---
--- return @table: https://docs.github.com/en/rest/reference/pulls#get-a-pull-request
-function M.get_pull(number)
-    local cmd = [[gh api /repos/{owner}/{repo}/pulls/]] .. number
     return gh_exec(cmd)
 end
 
@@ -177,14 +183,6 @@ function M.update_pull_body_async(pull_number, body, on_read)
     async_request(args, on_read)
 end
 
--- get a list of commits for the provided pull request.
---
--- return @table: https://docs.github.com/en/rest/reference/pulls#list-commits-on-a-pull-request
-function M.get_pull_commits(number)
-    local cmd = string.format([[gh api -X get -F "per_page=100" /repos/{owner}/{repo}/pulls/%d/commits]], number)
-    return gh_exec(cmd)
-end
-
 function M.get_pull_commits_async(pull_number, on_read)
     local args = {"api", "-X", "GET", "-F", "per_page=100",  string.format([[/repos/{owner}/{repo}/pulls/%d/commits]], pull_number)}
     async_request(args, on_read)
@@ -195,35 +193,6 @@ end
 -- return @table: https://docs.github.com/en/rest/reference/commits#get-a-commit
 function M.get_commit(ref)
     local cmd = string.format([[gh api /repos/{owner}/{repo}/commits/%s]], ref)
-    return gh_exec(cmd)
-end
-
--- returns all comments associated with a unified diff
---
--- will return comments created outside of a review along with comments from
--- submitted reviews.
---
--- pending review comments are not displayed here.
---
--- return @table: https://docs.github.com/en/rest/reference/pulls#list-review-comments-on-a-pull-request
-function M.get_pull_comments(number)
-    local cmd = string.format([[gh api -X get -F "per_page=100" /repos/{owner}/{repo}/pulls/%d/comments]], number)
-    return gh_exec(cmd)
-end
-
--- issue comments are comments which appear directly on the pull request
--- front page.
---
--- they are not associated with a commit or a line in the pull request's unified
--- diff.
---
--- issue comments are not threaded.
---
--- an arbitrary issue number can be provided to obtain comments as well.
---
--- return @table: https://docs.github.com/en/rest/reference/issues#list-issue-comments
-function M.get_pull_issue_comments(number)
-    local cmd = string.format([[gh api /repos/{owner}/{repo}/issues/%d/comments]], number)
     return gh_exec(cmd)
 end
 
@@ -243,6 +212,61 @@ function M.get_pull_issue_comments_async(pull_number, on_read)
     async_request(args, on_read)
 end
 
+function M.get_pull_issue_comments_async_paginated(pull_number, on_read)
+    local args = {
+        'api',
+        'graphql',
+        '-F',
+        'owner={owner}',
+        '-F',
+        'name={repo}',
+        '-F',
+        string.format('number=%d', pull_number),
+        '-f',
+        string.format('query=%s', graphql.issue_comments_query)
+    }
+
+    local paginated_data = nil
+
+    function paginate(err, data)
+        if err then
+            vim.schedule(function () lib_notify.notify_popup_with_timeout("Failed to fetch pull request issue comments: " .. err, 7500, "error") end)
+            return
+        end
+
+        if paginated_data == nil then
+            paginated_data = data
+        else
+            for _, edge in ipairs(data["data"]["repository"]["pullRequest"]["comments"]["edges"]) do
+                table.insert(paginated_data["data"]["repository"]["pullRequest"]["comments"]["edges"], edge)
+            end
+        end
+
+        local hasNextPage = data["data"]["repository"]["pullRequest"]["comments"]["pageInfo"]["hasNextPage"]
+        local endCursor = data["data"]["repository"]["pullRequest"]["comments"]["pageInfo"]["endCursor"]
+        if hasNextPage then
+            local args = {
+                'api',
+                'graphql',
+                '-F',
+                'owner={owner}',
+                '-F',
+                'name={repo}',
+                '-F',
+                string.format('number=%d', pull_number),
+                '-F',
+                string.format('cursor=%s', endCursor),
+                '-f',
+                string.format('query=%s', graphql.issue_comments_query_cursor)
+            }
+            async_request(args, paginate)
+        else
+            on_read(err, paginated_data)
+        end
+    end
+    async_request(args, paginate)
+end
+
 function M.create_pull_issue_comment(number, body)
     local cmd = string.format([[gh api -X POST /repos/{owner}/{repo}/issues/%d/comments -f body=%s]], number, body)
     return gh_exec(cmd)
@@ -258,66 +282,6 @@ function M.delete_pull_issue_comment(id)
     return gh_exec(cmd, true)
 end
 
--- get individual reviews for a particular pull request.
---
--- return @table: https://docs.github.com/en/rest/reference/pulls#list-reviews-for-a-pull-request
-function M.get_pull_reviews(number)
-    local cmd = string.format([[gh api /repos/{owner}/{repo}/pulls/%d/reviews]], number)
-    return gh_exec(cmd)
-end
-
--- list comments grouped by the review they were created with.
---
--- `get_pull_comments` returns the superset of these comments.
---
--- return @table: https://docs.github.com/en/rest/reference/pulls#list-comments-for-a-pull-request-review
-function M.get_pull_review_comments(pull_number, review_id)
-    local cmd = string.format([[gh api /repos/{owner}/{repo}/pulls/%d/reviews/%d/comments]], pull_number, review_id)
-    return gh_exec(cmd)
-end
-
--- get_pr_review_threads returns a list of threads.
--- threads map to file diff locations for a modified file.
---
--- each thread contains a "comments" array with one or more review comments directed
--- at the source code location in the owning thread.
---
--- see graphql.review_threads_query for returned schema.
---
--- note, each comment gets an extracted "rest_id" field which maps them to the
--- GitHub HTTP api, you can use this id to create comments outside of reviews,
--- used by M.reply_comment()
-function M.get_pull_review_threads(pull_number)
-    local cmd = string.format([[gh api -X get -F "per_page=100" graphql -F owner='{owner}' -F name='{repo}' -F pull_number=%d -f query='%s']],
-        pull_number,
-        graphql.review_threads_query
-    )
-    local resp = gh_exec(cmd)
-    if resp == nil then
-        return nil
-    end
-    -- extract graphql syntax into something actually usable.
-    local threads = {}
-    local thread_edge = resp["data"]["repository"]["pullRequest"]["reviewThreads"]["edges"]
-    for _, thread_node in ipairs(thread_edge) do
-        local thread = nil
-        local comments = {}
-        thread = thread_node["node"]
-        for _, comment_edge in ipairs(thread["comments"]["edges"]) do
-            -- extract the rest API ID for the comment node to make replies
-            -- outside of a review possible.
-            local node = comment_edge["node"]
-            local idx = vim.fn.stridx(node["url"], "_r", 0)
-            local rest_id = vim.fn.strpart(node["url"], idx+2)
-            node["rest_id"] = rest_id
-            table.insert(comments, node)
-        end
-        thread.comments = comments
-        table.insert(threads, thread)
-    end
-    return threads
-end
-
 function M.get_issue_async(number, on_read)
     local args = {
         'api',
@@ -329,9 +293,13 @@ end
 function M.get_issue_comments_async(number, on_read)
     local args = {
         'api',
+        '-X',
+        'GET',
+        '-F',
+        'per_page=100',
         '/repos/{owner}/{repo}/issues/' .. number .. '/comments'
     }
-    async_request(args, on_read)
+    async_request(args, on_read, true)
 end
 
 function M.get_review_threads_async(pull_number, on_read)
@@ -348,6 +316,62 @@ function M.get_review_threads_async(pull_number, on_read)
         string.format('query=%s', graphql.review_threads_query)
     }
     async_request(args, on_read)
+end
+
+-- because graphql really sucks, write a special paginated function for this.
+function M.get_review_threads_async_paginated(pull_number, on_read)
+    local args = {
+        'api',
+        'graphql',
+        '-F',
+        'owner={owner}',
+        '-F',
+        'name={repo}',
+        '-F',
+        string.format('pull_number=%d', pull_number),
+        '-f',
+        string.format('query=%s', graphql.review_threads_query)
+    }
+
+    local paginated_data = nil
+
+    function paginate(err, data)
+        if err then
+            vim.schedule(function () lib_notify.notify_popup_with_timeout("Failed to fetch review threads: " .. err, 7500, "error") end)
+            return
+        end
+
+        if paginated_data == nil then
+            paginated_data = data
+        else
+            for _, edge in ipairs(data["data"]["repository"]["pullRequest"]["reviewThreads"]["edges"]) do
+                table.insert(paginated_data["data"]["repository"]["pullRequest"]["reviewThreads"]["edges"], edge)
+            end
+        end
+
+        local hasNextPage = data["data"]["repository"]["pullRequest"]["reviewThreads"]["pageInfo"]["hasNextPage"]
+        local endCursor = data["data"]["repository"]["pullRequest"]["reviewThreads"]["pageInfo"]["endCursor"]
+        if hasNextPage then
+            local args = {
+                'api',
+                'graphql',
+                '-F',
+                'owner={owner}',
+                '-F',
+                'name={repo}',
+                '-F',
+                string.format('pull_number=%d', pull_number),
+                '-F',
+                string.format('cursor=%s', endCursor),
+                '-f',
+                string.format('query=%s', graphql.review_threads_query_cursor)
+            }
+            async_request(args, paginate)
+        else
+            on_read(err, paginated_data)
+        end
+    end
+    async_request(args, paginate)
 end
 
 function M.resolve_thread(thread_id)
@@ -505,20 +529,16 @@ function M.delete_comment(comment_rest_id)
     return out
 end
 
-function M.list_review(pull_number)
-    local cmd = string.format([[gh api -H "Accept: application/vnd.github.v3+json" /repos/{owner}/{repo}/pulls/%d/reviews]],
-        pull_number
-    )
-    local out = gh_exec(cmd)
-    if out == nil then
-        return nil
-    end
-    return out
-end
-
 function M.list_reviews_async(pull_number, on_read)
-    local args = {"api", string.format("/repos/{owner}/{repo}/pulls/%d/reviews", pull_number)}
-    async_request(args, on_read)
+    local args = {
+        "api",
+        '-X',
+        'GET',
+        '-F',
+        'per_page=100',
+        string.format("/repos/{owner}/{repo}/pulls/%d/reviews", pull_number)
+    }
+    async_request(args, on_read, true)
 end
 
 function M.add_reaction(id, reaction, on_read)
@@ -547,25 +567,6 @@ function M.remove_reaction_async(id, reaction, on_read)
         string.format('query=%s', graphql.remove_reaction)
     }
     async_request(args, on_read)
-end
-
-function M.get_pending_review(pull_number, username)
-    local out = M.list_review(pull_number)
-    if out == nil then
-        return nil
-    end
-
-    local review = {}
-    for _, r in ipairs(out) do
-        if
-            r["user"]["login"] == username and
-            r["state"] == "PENDING"
-        then
-            review = r
-        end
-    end
-
-    return review, out
 end
 
 function M.create_review(pull_number, commit_id)
@@ -618,9 +619,13 @@ end
 function M.list_labels_async(on_read)
     local args = {
         'api',
+        '-X',
+        'GET',
+        '-F',
+        'per_page=100',
         '/repos/{owner}/{repo}/labels'
     }
-    async_request(args, on_read)
+    async_request(args, on_read, true)
 end
 
 function M.add_label_async(number, label, on_read)
@@ -648,17 +653,25 @@ end
 function M.get_check_suites_async(commit_sha, on_read)
     local args = {
         'api',
+        '-X',
+        'GET',
+        '-F',
+        'per_page=100',
         string.format("/repos/{owner}/{repo}/commits/%s/check-suites", commit_sha)
     }
-    async_request(args, on_read)
+    async_request(args, on_read, true)
 end
 
 function M.get_check_runs_by_suite(suite_id, on_read)
     local args = {
         'api',
+        '-X',
+        'GET',
+        '-F',
+        'per_page=100',
         string.format("/repos/{owner}/{repo}/check-suites/%s/check-runs", suite_id)
     }
-    async_request(args, on_read)
+    async_request(args, on_read, true)
 end
 
 return M

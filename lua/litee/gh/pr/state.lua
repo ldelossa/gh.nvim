@@ -354,7 +354,7 @@ end
 
 function M.get_review_threads_async(pull_number, cb)
     vim.schedule(function() vim.api.nvim_echo({{spinner() .. " fetching review threads", "LTInfo"}}, false, {}) end)
-    ghcli.get_review_threads_async(pull_number, function(err, data)
+    ghcli.get_review_threads_async_paginated(pull_number, function(err, data)
         if err then
             vim.schedule(function () lib_notify.notify_popup_with_timeout("Failed to fetch review threads: " .. err, 7500, "error") end)
             return
@@ -432,7 +432,7 @@ end
 function M.get_pull_issue_comments_async(pull_number, cb)
     vim.schedule(function() vim.api.nvim_echo({{spinner() .. " fetching issue comments", "LTInfo"}}, false, {}) end)
     local fence_id = add_fence("get_pull_issue_comments_async")
-    ghcli.get_pull_issue_comments_async(pull_number, function(err, data)
+    ghcli.get_pull_issue_comments_async_paginated(pull_number, function(err, data)
         if err then
             vim.schedule(function () lib_notify.notify_popup_with_timeout("Failed to fetch issue comments: " .. err, 7500, "error") end)
             return
