@@ -70,7 +70,11 @@ M.issue_comments_query = [[
 query($name: String!, $owner: String!, $number: Int!) { 
   repository(name: $name, owner: $owner) {
     pullRequest(number: $number) {
-      comments(first: 100) {
+      comments(first: 50) {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
         edges {
           node {
             author {
@@ -109,18 +113,152 @@ query($name: String!, $owner: String!, $number: Int!) {
 }
 ]]
 
--- review_threads_query is a request for all review threads and their comments
--- in a repository.
---
--- graphql variables:
--- $name        - name of repository
--- $owner       - owner of repository
--- $pull_number - number of pull request to list comments for.
+M.issue_comments_query_cursor = [[
+query($name: String!, $owner: String!, $number: Int!, $cursor: String!) { 
+  repository(name: $name, owner: $owner) {
+    pullRequest(number: $number) {
+      comments(first: 50, after: $cursor) {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+        edges {
+          node {
+            author {
+              login
+              
+            }
+            authorAssociation
+            body
+            createdAt
+            id
+            url
+            reactions(first:20) {
+              edges {
+                node {
+                  content
+                  id
+                  user {
+                    login
+                  }
+                }
+              }
+            }
+            publishedAt
+            updatedAt
+            url
+            viewerCanReact
+            viewerCanDelete
+            viewerCanUpdate
+            viewerDidAuthor
+            viewerCanMinimize
+          }
+        }
+      }
+    }
+  }
+}
+]]
+
 M.review_threads_query = [[
 query ($name: String!, $owner: String!, $pull_number: Int!) {
   repository(name: $name, owner: $owner) {
     pullRequest(number: $pull_number) {
-      reviewThreads(first: 100) {
+      reviewThreads(first: 50) {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+        edges {
+          node {
+            id
+            diffSide
+            isOutdated
+            isResolved
+            line
+            originalLine
+            originalStartLine
+            path
+            startDiffSide
+            startLine
+            viewerCanReply
+            viewerCanResolve
+            viewerCanUnresolve
+            resolvedBy {
+              login
+            }
+            comments(first: 100) {
+              edges {
+                node {
+                  id
+                  author {
+                    login
+                    avatarUrl
+                    resourcePath
+                    url
+                  }
+                  body
+                  createdAt
+                  path
+                  position
+                  publishedAt
+                  replyTo {
+                    id
+                  }
+                  pullRequestReview {
+                    id
+                  }
+                  commit {
+                    oid
+                    parents(first: 1) {
+                      edges {
+                        node {
+                          id
+                          oid
+                        }
+                      }
+                    }
+                  }
+                  reactions(first:20) {
+                    edges {
+                      node {
+                        content
+                        id
+                        user {
+                          login
+                        }
+                      }
+                    }
+                  }
+                  state
+                  updatedAt
+                  viewerCanDelete
+                  viewerCanMinimize
+                  viewerCanReact
+                  viewerCanUpdate
+                  viewerCannotUpdateReasons
+                  viewerDidAuthor
+                  url
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+]]
+
+M.review_threads_query_cursor = [[
+query ($name: String!, $owner: String!, $pull_number: Int!, $cursor: String!) {
+  repository(name: $name, owner: $owner) {
+    pullRequest(number: $pull_number) {
+      reviewThreads(first: 50, after: $cursor) {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
         edges {
           node {
             id
@@ -478,5 +616,4 @@ query ($name: String!, $owner: String!, $pull_number: Int!) {
     }
 }
 ]]
-
 return M
