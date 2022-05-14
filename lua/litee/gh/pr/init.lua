@@ -864,7 +864,7 @@ local function write_trees(ctx)
             local old_cursor = nil
             if
                 ctx.state[arg[1]].win ~= nil and
-                not vim.api.nvim_win_is_valid(ctx.state[arg[1]].win)
+                vim.api.nvim_win_is_valid(ctx.state[arg[1]].win)
             then
                 old_cursor = vim.api.nvim_win_get_cursor(ctx.state[arg[1]].win)
             end
