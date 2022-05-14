@@ -1,6 +1,7 @@
 local lib_icons = require('litee.lib.icons')
 local config = require('litee.gh.config').config
 local s = require('litee.gh.pr.state')
+local lib_path = require('litee.lib.util.path')
 
 local M = {}
 
@@ -170,7 +171,9 @@ function M.marshal_pr_commit_node(node)
     -- action_required, cancelled, failure, neutral, success, skipped, stale, timed_out
     if node.check ~= nil then
         name = node.check["name"]
-        detail = node.check["conclusion"]
+        if node.check["conclusion"] ~= vim.NIL then
+            detail = node.check["conclusion"]
+        end
         if node.check["conclusion"] == "success" then
             icon = icon_set["PassFilled"]
         elseif node.check["conclusion"] == "failure" then
@@ -178,6 +181,14 @@ function M.marshal_pr_commit_node(node)
         else
             icon = icon_set["Info"]
         end
+    end
+
+    if node.file ~= nil then
+        name = lib_path.basename(node.file["filename"])
+        if node.file["state"] ~= vim.NIL then
+            detail = node.file["status"]
+        end
+        icon = icon_set["File"]
     end
 
     -- if there's a notification for this id, swap the icon out with notification

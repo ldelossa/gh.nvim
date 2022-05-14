@@ -1,6 +1,5 @@
 local lib_tree_node = require('litee.lib.tree.node')
 local lib_icons     = require('litee.lib.icons')
-
 local config        = require('litee.gh.config').config
 
 local M = {}
