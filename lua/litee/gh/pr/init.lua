@@ -746,6 +746,15 @@ local function open_pr_node(ctx, node)
         handlers.review_handler(node.review["node_id"])
         return
     end
+    if node.file ~= nil then
+        -- if we are opening a file from the aggregated file view in the pr tree,
+        -- checkout head.
+        local out = gitcli.checkout(nil, s.pull_state["head"])
+        if out == nil then
+           lib_notify.notify_popup_with_timeout("Failed to checkout HEAD.", 7500, "error")
+        end
+        diff_view.open_diffsplit(s.pull_state.commits_by_sha[s.pull_state["head"]], node.file)
+    end
 end
 
 function M.open_pr_buffer()

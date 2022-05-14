@@ -402,7 +402,7 @@ function M.get_collaborators_async(cb)
         if err then
             vim.schedule(function () lib_notify.notify_popup_with_timeout("Failed to fetch repository collaborators: " .. err, 7500, "error") end)
             -- we will continue processing here, since gathering collaborators may require push access.
-            cb() 
+            cb()
             return
         end
 

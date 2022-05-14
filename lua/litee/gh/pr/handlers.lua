@@ -10,6 +10,7 @@ local pr_state      = require('litee.gh.pr.state')
 local details       = require('litee.gh.pr.details')
 local commits       = require('litee.gh.pr.commits')
 local conversations = require('litee.gh.pr.conversations')
+local files_changed = require('litee.gh.pr.files_changed')
 local comments      = require('litee.gh.pr.comments')
 local config        = require('litee.gh.config').config
 local ghcli         = require('litee.gh.ghcli')
@@ -122,6 +123,9 @@ function M.ui_handler(refresh, on_load_ui)
     if #conversations_subtree.children > 0 then
         table.insert(subtrees, conversations_subtree)
     end
+
+    local files_changed_subtree = files_changed.build_files_changed_tree(s.pull_state.files_by_name, 1, prev_tree)
+    table.insert(subtrees, files_changed_subtree)
 
     -- build checks subtree
     local checks_subtree = checks.build_checks_tree(s.pull_state.check_runs, 1, prev_tree)
