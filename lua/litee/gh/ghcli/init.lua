@@ -102,7 +102,7 @@ function M.get_user()
 end
 
 function M.list_collaborators_async(on_read)
-    local args = {"api", "--paginate", "/repos/{owner}/{repo}/collaborators"}
+    local args = {"api", "-X", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/collaborators"}
     async_request(args, on_read)
 end
 
@@ -118,12 +118,12 @@ end
 
 
 function M.get_pull_files(number)
-    local cmd = string.format([[gh api --paginate /repos/{owner}/{repo}/pulls/%d/files]], number)
+    local cmd = string.format([[gh api -X get -F "per_page=100" /repos/{owner}/{repo}/pulls/%d/files]], number)
     return gh_exec(cmd)
 end
 
 function M.get_pull_files_async(pull_number, on_read)
-    local args = {"api", "--paginate", string.format("/repos/{owner}/{repo}/pulls/%d/files", pull_number)}
+    local args = {"api", "-X", "GET", "-F", "per_page=100", string.format("/repos/{owner}/{repo}/pulls/%d/files", pull_number)}
     async_request(args, on_read)
 end
 
@@ -181,12 +181,12 @@ end
 --
 -- return @table: https://docs.github.com/en/rest/reference/pulls#list-commits-on-a-pull-request
 function M.get_pull_commits(number)
-    local cmd = string.format([[gh api --paginate /repos/{owner}/{repo}/pulls/%d/commits]], number)
+    local cmd = string.format([[gh api -X get -F "per_page=100" /repos/{owner}/{repo}/pulls/%d/commits]], number)
     return gh_exec(cmd)
 end
 
 function M.get_pull_commits_async(pull_number, on_read)
-    local args = {"api", "--paginate",  string.format([[/repos/{owner}/{repo}/pulls/%d/commits]], pull_number)}
+    local args = {"api", "-X", "GET", "-F", "per_page=100",  string.format([[/repos/{owner}/{repo}/pulls/%d/commits]], pull_number)}
     async_request(args, on_read)
 end
 
@@ -194,7 +194,7 @@ end
 --
 -- return @table: https://docs.github.com/en/rest/reference/commits#get-a-commit
 function M.get_commit(ref)
-    local cmd = string.format([[gh api --paginate /repos/{owner}/{repo}/commits/%s]], ref)
+    local cmd = string.format([[gh api /repos/{owner}/{repo}/commits/%s]], ref)
     return gh_exec(cmd)
 end
 
@@ -207,7 +207,7 @@ end
 --
 -- return @table: https://docs.github.com/en/rest/reference/pulls#list-review-comments-on-a-pull-request
 function M.get_pull_comments(number)
-    local cmd = string.format([[gh api --paginate /repos/{owner}/{repo}/pulls/%d/comments]], number)
+    local cmd = string.format([[gh api -X get -F "per_page=100" /repos/{owner}/{repo}/pulls/%d/comments]], number)
     return gh_exec(cmd)
 end
 
@@ -230,7 +230,6 @@ end
 function M.get_pull_issue_comments_async(pull_number, on_read)
     local args = {
         'api',
-        '--paginate',
         'graphql',
         '-F',
         'owner={owner}',
@@ -289,7 +288,7 @@ end
 -- GitHub HTTP api, you can use this id to create comments outside of reviews,
 -- used by M.reply_comment()
 function M.get_pull_review_threads(pull_number)
-    local cmd = string.format([[gh api --paginate graphql -F owner='{owner}' -F name='{repo}' -F pull_number=%d -f query='%s']],
+    local cmd = string.format([[gh api -X get -F "per_page=100" graphql -F owner='{owner}' -F name='{repo}' -F pull_number=%d -f query='%s']],
         pull_number,
         graphql.review_threads_query
     )
@@ -338,7 +337,6 @@ end
 function M.get_review_threads_async(pull_number, on_read)
     local args = {
         'api',
-        '--paginate',
         'graphql',
         '-F',
         'owner={owner}',
@@ -526,7 +524,6 @@ end
 function M.add_reaction(id, reaction, on_read)
     local args = {
         'api',
-        '--paginate',
         'graphql',
         '-F',
         string.format('id=%s', id),
@@ -541,7 +538,6 @@ end
 function M.remove_reaction_async(id, reaction, on_read)
     local args = {
         'api',
-        '--paginate',
         'graphql',
         '-F',
         string.format('id=%s', id),
