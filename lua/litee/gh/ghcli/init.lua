@@ -71,10 +71,10 @@ local function async_request(args, on_read)
             data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
-                on_read(err, nil)
+                vim.schedule(function() on_read(err, nil) end)
                 return
             end
-            on_read(false, data)
+            vim.schedule(function() on_read(false, data) end)
         end
     end)
     vim.loop.read_start(stderr, function(err, data)
@@ -87,10 +87,10 @@ local function async_request(args, on_read)
                     data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
-                        on_read(err, nil)
+                        vim.schedule(function() on_read(err, nil) end)
                         return
                     end
-                    on_read("UNKNOWN", data)
+                    vim.schedule( function () on_read("UNKNOWN", data) end)
                 end
             end)
     end)
