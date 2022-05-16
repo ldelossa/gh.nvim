@@ -753,7 +753,9 @@ local function open_pr_node(ctx, node)
         if out == nil then
            lib_notify.notify_popup_with_timeout("Failed to checkout HEAD.", 7500, "error")
         end
-        diff_view.open_diffsplit(s.pull_state.commits_by_sha[s.pull_state["head"]], node.file)
+        -- always diff against base commit if we are opening from aggregated file
+        -- view
+        diff_view.open_diffsplit(s.pull_state.commits[1], node.file)
     end
 end
 

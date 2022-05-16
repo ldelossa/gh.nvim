@@ -649,6 +649,11 @@ function M.create_comment(args)
         lib_notify.notify_popup_with_timeout("Cannot create a comment on line outside of GitHub diff.", 7500, "error")
         return
     end
+    local end_pos = state.lines_to_diff_pos[side][end_line]
+    if end_pos == nil then
+        lib_notify.notify_popup_with_timeout("Cannot create a comment on line outside of GitHub diff.", 7500, "error")
+        return
+    end
 
     local original_buf = nil
     if side == "RIGHT" then
