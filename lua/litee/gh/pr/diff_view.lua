@@ -124,6 +124,22 @@ end
 -- setup.
 local function diffsplit_sign_place()
     init()
+    vim.fn.sign_unplace("gh-can-comment")
+    -- paint signs where you can create a comment
+    for line, _ in pairs(state.lines_to_diff_pos['LEFT']) do
+            local buf = state.lbuf
+            vim.fn.sign_place(0, "gh-can-comment", "gh-can-comment", buf, {
+                lnum = line,
+                priority = 99
+            })
+    end
+    for line, _ in pairs(state.lines_to_diff_pos['RIGHT']) do
+            local buf = state.rbuf
+            vim.fn.sign_place(0, "gh-can-comment", "gh-can-comment", buf, {
+                lnum = line,
+                priority = 99
+            })
+    end
     if state.threads == nil then
         vim.fn.sign_unplace("gh-comments")
         return
@@ -133,21 +149,6 @@ local function diffsplit_sign_place()
         return
     end
     vim.fn.sign_unplace("gh-comments")
-    -- paint signs where you can create a comment
-    for line, _ in pairs(state.lines_to_diff_pos['LEFT']) do
-            local buf = state.lbuf
-            vim.fn.sign_place(0, "gh-comments", "gh-can-comment", buf, {
-                lnum = line,
-                priority = 99
-            })
-    end
-    for line, _ in pairs(state.lines_to_diff_pos['RIGHT']) do
-            local buf = state.rbuf
-            vim.fn.sign_place(0, "gh-comments", "gh-can-comment", buf, {
-                lnum = line,
-                priority = 99
-            })
-    end
     local comment_placed = {}
     for _, thread in ipairs(state.threads) do
         local buf = nil
@@ -340,14 +341,15 @@ function M.open_diffsplit(commit, file, thread)
     -- with the gitcli command
     local diff_file = string.format("/tmp/%s", lib_util_path.basename(file["filename"]))
 
+    vim.fn.delete("/tmp/gh-nvim-empty")
     -- if the file is added, open our local file and diff an empty buffer
     if file["status"] == "added" then
         vim.cmd("edit " .. file["filename"])
-        diff_file = "/tmp/empty"
+        diff_file = "/tmp/gh-nvim-empty"
     -- if the file is removed, open an empty buffer first and diff the old
     -- old version
     elseif file["status"] == "removed" then
-        vim.cmd("edit /tmp/empty")
+        vim.cmd("edit /tmp/gh-nvim-empty")
     -- in all other cases open our local file and diff the old version.
     else
         vim.cmd("edit " .. file["filename"])

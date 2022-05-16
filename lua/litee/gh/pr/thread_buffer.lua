@@ -461,7 +461,12 @@ function M.render_thread(thread_id, n_of, displayed_thread)
             goto done
         end
         -- we have no text to disply, reset cursor to original position if safe
-        lib_util.safe_cursor_reset(displayed.win, displayed.cursor)
+        if
+            displayed.win ~= nil and
+            vim.api.nvim_win_is_valid(displayed.win)
+        then
+            lib_util.safe_cursor_reset(displayed.win, displayed.cursor)
+        end
     end
 
     ::done::
