@@ -178,6 +178,14 @@ function M.marshal_pr_commit_node(node)
             icon = icon_set["PassFilled"]
         elseif node.check["conclusion"] == "failure" then
             icon = icon_set["CircleStop"]
+        elseif node.check["conclusion"] == "skipped" then
+            icon = icon_set["CircleSlash"]
+        elseif node.check["status"] == "in_progress" then
+            icon = icon_set["Sync"]
+            detail = "in progress"
+        elseif node.check["status"] == "queued" then
+            icon = icon_set["CirclePause"]
+            detail = "queued"
         else
             icon = icon_set["Info"]
         end

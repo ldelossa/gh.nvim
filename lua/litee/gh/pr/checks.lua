@@ -38,6 +38,11 @@ function M.build_checks_tree(checks, depth, prev_tree)
         c_node.expanded = true
         table.insert(root.children, c_node)
     end
+
+    table.sort(root.children, function(a,b)
+        return a.name < b.name
+    end)
+
     return root
 end
 
