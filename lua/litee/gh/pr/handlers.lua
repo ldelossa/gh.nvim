@@ -140,6 +140,12 @@ function M.ui_handler(refresh, on_load_ui)
     -- the panel open.
     local global_state = lib_state.put_component_state(cur_tabpage, "pr", state)
 
+    local cursor = nil
+    if global_state["pr"].win ~= nil and
+       vim.api.nvim_win_is_valid(global_state["pr"].win) then
+       cursor = vim.api.nvim_win_get_cursor(global_state["pr"].win)
+   end
+
     -- state was not nil, can we reuse the existing win
     -- and buffer?
     if
@@ -167,6 +173,10 @@ function M.ui_handler(refresh, on_load_ui)
     if not refresh then
         local buf = pr_buffer.render_comments()
         vim.api.nvim_win_set_buf(0, buf)
+    end
+
+    if cursor ~= nil then
+        lib_util.safe_cursor_reset(global_state["pr"].win, cursor)
     end
 
     if on_load_ui ~= nil then
