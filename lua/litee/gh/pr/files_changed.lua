@@ -76,7 +76,11 @@ function M.build_files_changed_tree(files, depth, prev_tree)
             detail = "",
             icon = icon_set["Folder"]
         }
-        dir.expanded = true
+        if dir.depth == 2 then
+            dir.expanded = false
+        else
+            dir.expanded = true
+        end
         if prev_tree.depth_table[n.depth+1] ~= nil then
             for _, prev in ipairs(prev_tree.depth_table[n.depth+1]) do
                 if prev.key == dir.key then
