@@ -61,7 +61,7 @@ local function extract_thread_lines(thread)
             start_line = end_line
         else
             multiline = true
-            end_line = end_line - 1
+            end_line = end_line
         end
         return {start_line-1, end_line, multiline}
     elseif thread.thread["originalLine"] ~= vim.NIL then
@@ -71,7 +71,7 @@ local function extract_thread_lines(thread)
             start_line = end_line
         else
             multiline = true
-            end_line = end_line - 1
+            end_line = end_line
         end
         return {start_line-1, end_line, multiline}
     end
