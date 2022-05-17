@@ -36,6 +36,7 @@ function M.ui_handler(refresh, on_load_ui)
     local cur_win = vim.api.nvim_get_current_win()
     local cur_tabpage = vim.api.nvim_win_get_tabpage(cur_win)
     local state_was_nil = false
+    print("!!DEBUG: obtained current win and tabpage")
 
     -- refresh var from closure.
     if not refresh then
@@ -54,13 +55,16 @@ function M.ui_handler(refresh, on_load_ui)
             lib_notify.notify_popup_with_timeout("Cannot open pull request because repository has changes. Stash changes and try again.", 7500, "error")
             return
         end
+        print("!!DEBUG: passed repo dirty check")
         -- if we don't have the remote HEAD then add it and fetch the branch by ref
         -- name.
         --
         -- if it exists the remote name is returned turned.
         local ok, remote = gitcli.remote_exists(remote_url)
+        print("!!DEBUG: returned from remote exists check")
         if not ok then
             local out = gitcli.add_remote(remote_name, remote_url)
+            print("!!DEBUG: returned from adding remote")
             if out == nil then
                 lib_notify.notify_popup_with_timeout("Failed to add remote git repository.", 7500, "error")
                 return
@@ -74,10 +78,12 @@ function M.ui_handler(refresh, on_load_ui)
             lib_notify.notify_popup_with_timeout("Failed to fetch remote branch.", 7500, "error")
             return
         end
+        print("!!DEBUG: returned from fetching remote branch locally")
     end
 
     -- setup state for the pr component
     local state = lib_state.get_component_state(cur_tabpage, "pr")
+    print("!!DEBUG: returned from getting global component state")
     if state == nil then
         state = {}
         -- if state.tree ~= nil then
@@ -90,6 +96,7 @@ function M.ui_handler(refresh, on_load_ui)
     s.pull_state.tab = state.tab
 
     local prev_tree = lib_tree.get_tree(state.tree)
+    print("!!DEBUG: returned getting tree")
 
     -- dynamic set of subtrees to create
     local subtrees = {}
@@ -107,44 +114,53 @@ function M.ui_handler(refresh, on_load_ui)
     -- build root's details sub-tree
     local details_subtree = details.build_details_tree(s.pull_state.pr_raw, 1, prev_tree)
     table.insert(subtrees, details_subtree)
+    print("!!DEBUG: created details subtree")
 
     -- build commits subtree
     local commits_subtree = commits.build_commits_tree(s.pull_state.commits, 1, prev_tree)
     table.insert(subtrees, commits_subtree)
+    print("!!DEBUG: created commits subtree")
 
     -- build reviews subtree
     local reviews_subtree = reviews.build_reviews_subtree(1, prev_tree)
     if #reviews_subtree.children > 0 then
         table.insert(subtrees, reviews_subtree)
     end
+    print("!!DEBUG: created reviews subtree")
 
     -- build converstation subtree
     local conversations_subtree = conversations.build_conversations_tree(s.pull_state.review_threads_raw, 1, prev_tree)
     if #conversations_subtree.children > 0 then
         table.insert(subtrees, conversations_subtree)
     end
+    print("!!DEBUG: created conversations")
 
     local files_changed_subtree = files_changed.build_files_changed_tree(s.pull_state.files_by_name, 1, prev_tree)
     table.insert(subtrees, files_changed_subtree)
+    print("!!DEBUG: created files changed subtree")
 
     -- build checks subtree
     local checks_subtree = checks.build_checks_tree(s.pull_state.check_runs, 1, prev_tree)
     if #checks_subtree.children > 0 then
         table.insert(subtrees, checks_subtree)
     end
+    print("!!DEBUG: created checks subtree")
 
     -- register our pr_root as the root of our new tree.
     lib_tree.add_node(state.tree, pr_root, "", true)
+    print("!!DEBUG: returned from adding root pr node")
 
     -- update component state and grab the global since we need it to toggle
     -- the panel open.
     local global_state = lib_state.put_component_state(cur_tabpage, "pr", state)
+    print("!!DEBUG: returned from getting global state")
 
     local cursor = nil
     if global_state["pr"].win ~= nil and
        vim.api.nvim_win_is_valid(global_state["pr"].win) then
        cursor = vim.api.nvim_win_get_cursor(global_state["pr"].win)
    end
+   print("!!DEBUG: returned from getting cursor")
 
     -- state was not nil, can we reuse the existing win
     -- and buffer?
@@ -161,6 +177,7 @@ function M.ui_handler(refresh, on_load_ui)
             state.tree,
             marshaller.marshal_pr_commit_node
         )
+        print("!!DEBUG: returned from writing out tree")
     else
         -- we have no state, so open up the panel or popout to create
         -- a window and buffer.
@@ -169,10 +186,12 @@ function M.ui_handler(refresh, on_load_ui)
         else
             lib_panel.toggle_panel(global_state, true, false)
         end
+        print("!!DEBUG: returned from toggling panel")
     end
     if not refresh then
         local buf = pr_buffer.render_comments()
         vim.api.nvim_win_set_buf(0, buf)
+        print("!!DEBUG: returned from rendering pr buffer")
     end
 
     if cursor ~= nil then

@@ -475,7 +475,9 @@ function M.load_state_async(pull_number, on_load)
                                 M.get_collaborators_async(function ()
                                     M.get_repo_issues_async(function ()
                                         M.get_check_runs(
-                                            function () vim.schedule(on_load) end
+                                            function () 
+                                                vim.schedule(function() vim.api.nvim_echo({{spinner() .. " successfully fetched PR data", "LTInfo"}}, false, {}) end)
+                                                vim.schedule(on_load) end
                                         )
                                     end)
                                 end)
