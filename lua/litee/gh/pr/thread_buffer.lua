@@ -305,10 +305,20 @@ function M.render_thread(thread_id, n_of, displayed_thread)
                 text_area_lines = nil
             end
         end
+
+        local cursor = nil
+        if
+            displayed ~= nil and
+            displayed.win ~= nil and
+            vim.api.nvim_win_is_valid(displayed.win)
+        then
+            cursor = vim.api.nvim_win_get_cursor(displayed_thread.win)
+        end
+
         displayed = {
             win = displayed_thread.win,
             -- cursor so we can restore position on new thread load
-            cursor = vim.api.nvim_win_get_cursor(displayed_thread.win),
+            cursor = cursor,
             -- any in the text area so we can restore it incase the user
             -- was writing a large message and a new message came into the
             -- thread buffer.

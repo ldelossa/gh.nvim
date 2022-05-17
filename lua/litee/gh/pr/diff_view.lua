@@ -130,14 +130,14 @@ local function diffsplit_sign_place()
             local buf = state.lbuf
             vim.fn.sign_place(0, "gh-can-comment", "gh-can-comment", buf, {
                 lnum = line,
-                priority = 99
+                priority = 98
             })
     end
     for line, _ in pairs(state.lines_to_diff_pos['RIGHT']) do
             local buf = state.rbuf
             vim.fn.sign_place(0, "gh-can-comment", "gh-can-comment", buf, {
                 lnum = line,
-                priority = 99
+                priority = 98
             })
     end
     if state.threads == nil then
@@ -314,7 +314,7 @@ local function map_chunks_to_lines(file)
 end
 
 -- the commmit object passed in is one which is returned by ghcli.get_commit().
-function M.open_diffsplit(commit, file, thread)
+function M.open_diffsplit(commit, file, thread, compare_base)
     -- setup the current tabpage for a diff,
     -- when we return from this we'll be inside a right hand diff window
     setup_diff_ui()
@@ -356,7 +356,13 @@ function M.open_diffsplit(commit, file, thread)
     end
 
     -- write the old version of the file to /tmp/ and diff it
-    local parent_commit = commit["parents"][1]["sha"]
+    local parent_commit = nil
+    if compare_base then
+        parent_commit = s.pull_state.commits[1]["parents"][1]["sha"]
+    else
+        parent_commit = commit["parents"][1]["sha"]
+    end
+
     gitcli.git_show_and_write(parent_commit, file["filename"], diff_file)
     vim.cmd("vert diffsplit " .. diff_file)
 
@@ -398,7 +404,11 @@ function M.open_diffsplit(commit, file, thread)
         vim.api.nvim_set_current_win(win)
         vim.api.nvim_win_set_cursor(win, {line, 0})
         M.toggle_threads(thread["id"])
+        return
     end
+    -- always open diffs at start of file
+    vim.api.nvim_win_set_cursor(state.rwin, {1, 0})
+    vim.api.nvim_win_set_cursor(state.lwin, {1, 0})
 end
 
 function M.toggle_thread_popup()
