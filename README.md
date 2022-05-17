@@ -60,10 +60,7 @@ GH.nvim is a "commit-wise" review tool. This means you browse the changed files
 by their commits. This will feel familiar to those who immediately click on the
 "commits" tab on the GitHub UI to view the incremental changes of the pull request.
 
-GH.nvim holds the opinion that this is the correct way to do a code review and
-and the TUI emphasizes this workflow.
-
-see doc/gh-nvm.txt for usage and more details.
+see doc/gh-nvm.txt for complete usage and more details.
 
 Checkout my [rational and demo video](https://youtu.be/hhrWwYfMK1I) to get an initial idea
 of how gh.nvim works, why it works the way it does, and its look and feel.
@@ -137,9 +134,12 @@ fzf.lua, add the following snippet to your config:
 vim.cmd("FzfLua register_ui_select")
 ```
 
-Additionally, you may want to set up some [which key](https://github.com/folke/which-key.nvim)
-bindings to help navigate all of the commands. Below you can find an example which key configuration
-that binds most of the commands. Feel free to tweak to your liking.
+Additionally, you may want to set up some [which
+key](https://github.com/folke/which-key.nvim) bindings to help navigate all of the
+commands. Below you can find an example which key configuration that binds most of the
+commands. It also includes a keybinding for `LTPanel` which comes from Litee.nvim and
+allows you to toggle the panel so you can focus on the diff.Feel free to tweak to your
+liking.
 
 ```lua
 local wk = require("which-key")
@@ -159,6 +159,10 @@ wk.register({
             i = {
                 name = "+Issues",
                 p = { "<cmd>GHPreviewIssue<cr>", "Preview" },
+            },
+            l = {
+                name = "+Litee",
+                t = { "<cmd>LTPanel<cr>", "Toggle Panel" },
             },
             r = {
                 name = "+Review",
