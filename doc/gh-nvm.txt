@@ -94,7 +94,6 @@ Dependencies:
     For GitHub Enterprise, make sure to set the environment variable `GH_HOST`.
     https://git-scm.com/
     https://github.com/cli/cli
-   
 
     It is not mandatory but *highly* recommended to use GH.nvim with either 
     fzf.lua or telescope. This is because GH.nvim uses `vim.ui.select` for most
