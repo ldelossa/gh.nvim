@@ -111,4 +111,13 @@ function M.git_show_and_write(commit, file, write_to)
     return out
 end
 
+function M.git_reset_hard(remote, branch)
+    local cmd = string.format([[git reset --hard %s/%s]], remote, branch)
+    local out = git_exec(cmd)
+    if out == nil then
+        return nil
+    end
+    return out
+end
+
 return M

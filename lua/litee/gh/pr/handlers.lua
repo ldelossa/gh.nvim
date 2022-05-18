@@ -440,6 +440,15 @@ function M.commits_handler(sha, refresh)
     state.last_opened_commit = commit
 end
 
+local function commit_exists(sha) 
+    for _, c in ipairs(s.pull_state.commits) do
+        if c["sha"] == sha then
+            return true
+        end
+    end
+    return false
+end
+
 local function on_refresh()
         M.ui_handler(true)
 
@@ -451,7 +460,11 @@ local function on_refresh()
         then
             local tree = lib_tree.get_tree(comp_state.tree)
             local commit = tree["root"].commit
-            M.commits_handler(commit["sha"], true)
+            if not commit_exists(commit["sha"]) then
+                vim.cmd("GHCloseCommit")
+            else
+                M.commits_handler(commit["sha"], true)
+            end
         end
 
         -- refresh the "review" component if we have a valid tree, review is on tree's root.

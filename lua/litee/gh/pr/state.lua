@@ -1,7 +1,9 @@
 local lib_notify    = require('litee.lib.notify')
 
 local ghcli         = require('litee.gh.ghcli')
+local gitcli        = require('litee.gh.gitcli')
 local comments      = require('litee.gh.pr.comments')
+local config        = require('litee.gh.config').config
 
 local M = {}
 
@@ -234,6 +236,47 @@ function M.get_repo_issues_async(cb)
     end)
 end
 
+function should_reset(old_commits, new_commits)
+    -- history squashed or changed.
+    if #old_commits > #new_commits then
+        return true
+    end
+    -- at least one commit in the history has been rebased.
+    for i, oc in ipairs(old_commits) do
+        local nc = new_commits[i]
+        if oc["sha"] ~= nc["sha"] then
+            return true
+        end
+    end
+    return false
+end
+
+local function git_reset()
+    if gitcli.repo_dirty() then
+        lib_notify.notify_popup_with_timeout("Git history has changed, want to reset to remote but repo is dirty. Please stash changes and run GHRefreshPR", 7500, "error")
+        return false
+    end
+    local remote_url = ""
+    if config.prefer_https_remote then
+        remote_url = M.pull_state.pr_raw["head"]["repo"]["clone_url"]
+    else
+        remote_url = M.pull_state.pr_raw["head"]["repo"]["ssh_url"]
+    end
+    local ok, remote = gitcli.remote_exists(remote_url)
+    if not ok then
+        -- really shouldn't happen
+        lib_notify.notify_popup_with_timeout("Git history has changed, want to reset but couldn't identify remote", 7500, "error")
+        return false
+    end
+    local head_branch = M.pull_state.pr_raw["head"]["ref"]
+    local out = gitcli.git_reset_hard(remote, head_branch)
+    if out == nil then
+        lib_notify.notify_popup_with_timeout("Git history changed but failed to reset", 7500, "error")
+        return false
+    end
+    return true
+end
+
 function M.get_commits_async(pull_number, cb)
     vim.schedule(function() vim.api.nvim_echo({{spinner() .. " fetching commits", "LTInfo"}}, false, {}) end)
     local fence_id = add_fence("get_commits_async")
@@ -246,6 +289,19 @@ function M.get_commits_async(pull_number, cb)
             cb()
             return
         end
+
+        if
+            M.pull_state.commits ~= nil and
+            #M.pull_state.commits ~= 0
+        then
+            if should_reset(M.pull_state.commits, data) then
+                if not git_reset() then
+                    return
+                end
+                vim.schedule(function () lib_notify.notify_popup_with_timeout("Git history has changed and repository reset to remote", 7500, "info") end)
+            end
+        end
+
         M.pull_state.commits_by_sha = {}
         M.pull_state.commits = data
         -- add commits to pull_state by their SHAs

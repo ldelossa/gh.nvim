@@ -228,6 +228,14 @@ function M.on_refresh()
         return
     end
 
+    -- if the commit we are displaying no longer exists due to rebase or squash, render this
+    -- message out to diff buffers and return.
+    if s.pull_state.commits_by_sha[state.commit["sha"]] == nil then
+            vim.api.nvim_buf_set_lines(state.lbuf, 0, -1, false, {"Commit no longer exists"})
+            vim.api.nvim_buf_set_lines(state.rbuf, 0, -1, false, {"Commit no longer exists"})
+            return
+    end
+
     -- get latest threads
     state.threads = s.pull_state.review_threads_by_filename[state.file["filename"]]
 
