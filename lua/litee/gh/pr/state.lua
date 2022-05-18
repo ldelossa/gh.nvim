@@ -236,7 +236,7 @@ function M.get_repo_issues_async(cb)
     end)
 end
 
-function should_reset(old_commits, new_commits)
+local function should_reset(old_commits, new_commits)
     -- history squashed or changed.
     if #old_commits > #new_commits then
         return true
@@ -249,6 +249,36 @@ function should_reset(old_commits, new_commits)
         end
     end
     return false
+end
+
+local function should_fetch(old_commits, new_commits)
+    if #old_commits < #new_commits then
+        return true
+    end
+    return false
+end
+
+local function git_fetch()
+    local remote_url = ""
+    if config.prefer_https_remote then
+        remote_url = M.pull_state.pr_raw["head"]["repo"]["clone_url"]
+    else
+        remote_url = M.pull_state.pr_raw["head"]["repo"]["ssh_url"]
+    end
+    local ok, remote = gitcli.remote_exists(remote_url)
+    if not ok then
+        -- really shouldn't happen
+        lib_notify.notify_popup_with_timeout("New commits added, wanted to fetch but couldn't determine remote", 7500, "error")
+        return false
+    end
+    -- fetch the remote branch so the commits under review are locally accessible.
+    local head_branch = M.pull_state.pr_raw["head"]["ref"]
+    local out = gitcli.fetch(remote, head_branch)
+    if out == nil then
+        lib_notify.notify_popup_with_timeout("Failed to fetch remote branch.", 7500, "error")
+        return
+    end
+    return true
 end
 
 local function git_reset()
@@ -299,6 +329,11 @@ function M.get_commits_async(pull_number, cb)
                     return
                 end
                 vim.schedule(function () lib_notify.notify_popup_with_timeout("Git history has changed and repository reset to remote", 7500, "info") end)
+            elseif should_fetch(M.pull_state.commits, data) then
+                if not git_fetch() then
+                    return
+                end
+                vim.schedule(function () lib_notify.notify_popup_with_timeout("New commits added to pull request and fetched locally.", 7500, "info") end)
             end
         end
 
@@ -313,6 +348,7 @@ function M.get_commits_async(pull_number, cb)
             M.pull_state.commits_by_sha[commit["sha"]] = commit
         end
         cb()
+
     end)
 end
 
