@@ -933,7 +933,6 @@ end
 
 function M.open_node_url()
     local ctx = ui_req_ctx()
-    print(ctx.tree_type)
     if ctx.tree_type == nil then
         return
     end

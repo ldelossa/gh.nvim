@@ -247,7 +247,7 @@ local function render_comment(comment, thread_stale)
     return lines
 end
 
-function M.create_thread(details)
+function M.create_thread(details, on_create)
     if config.icon_set ~= nil then
         icon_set = lib_icons[config.icon_set]
     end
@@ -262,18 +262,28 @@ function M.create_thread(details)
     vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, {})
 
     local buffer_lines = {}
-    table.insert(buffer_lines, string.format("%s  %s", icon_set["Account"], "Create your new comment below... (ctrl-s to submit)"))
+    table.insert(buffer_lines, string.format("%s  Create your new comment below... (submit: %s)", icon_set["Account"], config.keymaps.submit_comment))
     state.text_area_off = #buffer_lines
     table.insert(buffer_lines, "")
     vim.api.nvim_buf_set_lines(state.buf, 0, #buffer_lines, false, buffer_lines)
 
     -- set some additional book keeping state.
     state.buffer_end = #buffer_lines
-    state.creating_comment = details
+    state.creating_comment = {details, on_create}
 
     M.set_modifiable(false)
 
     return state.buf
+end
+
+function M.restore_comment_create(displayed)
+    M.create_thread(state.creating_comment[1], state.creating_comment[2])
+    local new_buf_end = #displayed.text_area
+    M.set_modifiable(true)
+    vim.api.nvim_buf_set_lines(state.buf, state.text_area_off, new_buf_end, false, displayed.text_area)
+    M.set_modifiable(false)
+    state.buffer_end = new_buf_end
+    lib_util.safe_cursor_reset(displayed.win, {new_buf_end, vim.o.columns})
 end
 
 function M.render_thread(thread_id, n_of, displayed_thread)
@@ -324,6 +334,20 @@ function M.render_thread(thread_id, n_of, displayed_thread)
             -- thread buffer.
             text_area = text_area_lines
         }
+    end
+
+    -- if details exists, this means we were creating a new thread, we need
+    -- to restore this.
+    if
+        state.creating_comment ~= nil
+        and displayed ~= nil
+    then
+        M.restore_comment_create(displayed)
+        return state.buf
+    end
+
+    if thread_id == "creating" then
+        return state.buf
     end
 
     reset_state()
@@ -624,6 +648,7 @@ end
 -- and then reset that field to nil.
 local function update(body)
     local rest_id = comment_rest_id(state.editing_comment)
+    state.editing_comment = nil
     local out = ghcli.update_comment(rest_id, body)
     if out == nil then
         return nil
@@ -696,15 +721,6 @@ local function create(body, details)
        end
     end
     vim.api.nvim_win_set_buf(0, details.original_buf)
-    -- set to nil so refresh doesn't try to render anything.
-    state.thread = nil
-end
-
-function M.on_refresh()
-    -- re-render thread buffer
-    if state.thread ~= nil then
-        M.render_thread(state.thread.thread["id"])
-    end
 end
 
 function M.reaction()
@@ -769,15 +785,18 @@ function M.submit()
 
     if state.editing_comment ~= nil then
        local out = update(body)
+       state.editing_comment = nil
        if out == nil then
           lib_notify.notify_popup_with_timeout("Failed to update comment.", 7500, "error")
           return
        end
     elseif state.creating_comment ~= nil then
        -- details we need to create the commit are stashed on this state field
-       local details = state.creating_comment
+       local details = state.creating_comment[1]
        create(body, details)
+       local details = state.creating_comment[2]()
        vim.cmd("GHRefreshComments")
+       state.creating_comment = nil
        return
     else
        local out = reply(body)

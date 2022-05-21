@@ -693,7 +693,9 @@ function M.create_comment(args)
         end_line = end_line,
         original_buf = original_buf
     }
-    local buf = thread_buffer.create_thread(details)
+    local buf = thread_buffer.create_thread(details, function()
+        state.displayed_thread = nil
+    end)
 
     local win = nil
     if side == "RIGHT" then
@@ -703,6 +705,7 @@ function M.create_comment(args)
         vim.api.nvim_win_set_buf(state.rwin, buf)
         win = state.rwin
     end
+
     -- put user's cursor in create buffer
     vim.api.nvim_set_current_win(win)
 
@@ -713,7 +716,7 @@ function M.create_comment(args)
         win = win,
         buffer = buf,
         index = nil,
-        thread_id = nil
+        thread_id = nil,
     }
 end
 
