@@ -41,6 +41,7 @@ function M.build_commits_tree(commits, depth, prev_tree)
         )
         child_node.commit = commit
         child_node.expanded = true
+        child_node.url = commit["html_url"]
         table.insert(children, child_node)
     end
 

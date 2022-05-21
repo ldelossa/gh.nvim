@@ -105,6 +105,7 @@ function M.build_files_changed_tree(files, depth, prev_tree)
         )
         child_node.file = file
         child_node.expanded = true
+        child_node.url = file["blob_url"]
         table.insert(dir_node.children, child_node)
     end
 

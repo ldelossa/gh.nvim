@@ -56,6 +56,8 @@ function M.setup()
     vim.api.nvim_create_user_command("GHPreviewIssue", helpers.preview_issue_under_cursor, {})
     -- Add a label to the currently opened pull request.
     vim.api.nvim_create_user_command("GHAddLabel", pr.add_label, {})
+    -- If possible, open the node under the cursor in your web browser.
+    vim.api.nvim_create_user_command("GHViewWeb",  pr.open_node_url, {})
 end
 
 return M

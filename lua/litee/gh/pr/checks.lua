@@ -34,6 +34,7 @@ function M.build_checks_tree(checks, depth, prev_tree)
         )
         c_node.check = check
         c_node.expanded = true
+        c_node.url = check["html_url"]
         table.insert(root.children, c_node)
     end
 

@@ -43,6 +43,7 @@ function M.build_reviews_subtree(depth, prev_tree)
         )
         r.expanded = true
         r.review =  review
+        r.url = review["html_url"]
         table.insert(root.children, r)
         ::continue::
     end

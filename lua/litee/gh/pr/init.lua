@@ -64,6 +64,10 @@ local M = {}
 M.periodic_refresh = nil
 M.autocmds = {}
 
+local function open_nodes_url(node)
+    vim.fn.system({'xdg-open', node.url})
+end
+
 local function ui_req_ctx()
     local buf    = vim.api.nvim_get_current_buf()
     local win    = vim.api.nvim_get_current_win()
@@ -482,7 +486,7 @@ function M.collapse_pr_commits()
         ctx.files_cursor == nil or
         ctx.state["pr_files"].tree == nil
     then
-        lib_notify.notify_popup_with_timeout("Must open a pull request commit before starting a review.", 7500, "error")
+        lib_notify.notify_popup_with_timeout("Must open a pull request commit first.", 7500, "error")
         return
     end
     local node = ctx.files_node
@@ -499,10 +503,10 @@ function M.expand_pr_commits()
     local ctx = ui_req_ctx()
     if
         ctx.state == nil or
-        ctx.file_cursor == nil or
+        ctx.files_cursor == nil or
         ctx.state["pr_files"].tree == nil
     then
-        lib_notify.notify_popup_with_timeout("Must open a pull request commit before starting a review.", 7500, "error")
+        lib_notify.notify_popup_with_timeout("Must open a pull request commit first.", 7500, "error")
         return
     end
     local node = ctx.files_node
@@ -926,6 +930,26 @@ function M.open_node_review()
         remove_notifications(ctx, ctx.review_node)
     end
     lib_util.safe_cursor_reset(ctx.state["pr_review"].win, ctx.review_cursor)
+end
+
+function M.open_node_url()
+    local ctx = ui_req_ctx()
+    print(ctx.tree_type)
+    if ctx.tree_type == nil then
+        return
+    end
+    if ctx.tree_type == "pr" then
+        open_nodes_url(ctx.pr_node)
+        return
+    end
+    if ctx.tree_type == "pr_files" then
+        open_nodes_url(ctx.files_node)
+        return
+    end
+    if ctx.tree_type == "pr_review" then
+        open_nodes_url(ctx.review_node)
+        return
+    end
 end
 
 function M.add_label()

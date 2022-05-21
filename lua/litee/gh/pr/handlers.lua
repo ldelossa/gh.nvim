@@ -102,6 +102,7 @@ function M.ui_handler(refresh, on_load_ui)
         0
     )
     pr_root.pr = s.pull_state.pr_raw
+    pr_root.url = s.pull_state.pr_raw["html_url"]
     pr_root.children = subtrees
 
     -- build root's details sub-tree
@@ -249,6 +250,7 @@ function M.review_handler(review_id, refresh)
     )
     root.review = review
     root.expanded = true
+    root.url = review["html_url"]
 
     -- find all threads we know of with this review id
     local children = {}
@@ -358,6 +360,7 @@ function M.commits_handler(sha, refresh)
     )
     root.commit = commit
     root.location = nil
+    root.url = commit["html_url"]
 
     -- edited files in this commit are the children
     local children = {}
@@ -370,6 +373,7 @@ function M.commits_handler(sha, refresh)
         )
         child_node.file = file
         child_node.expanded = true
+        child_node.url = file["blob_url"]
         table.insert(children, child_node)
         -- if threads exist for this file add them as children
         if s.pull_state.review_threads_by_filename[file["filename"]] ~= nil then

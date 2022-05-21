@@ -90,6 +90,7 @@ function M.build_review_thread_trees(threads, depth)
             )
             comment.comment = c
             comment.comment["thread_id"] = t["id"]
+            comment.url = c["url"]
             comment.expanded = true
             table.insert(comments, comment)
             thread_comments_by_id[c["id"]] = comment
