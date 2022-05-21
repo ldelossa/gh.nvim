@@ -97,7 +97,7 @@ local function register_pr_component()
         lib_tree.write_tree_no_guide_leaf(
             state["pr"].buf,
             state["pr"].tree,
-            pr_marshallers.marshal_pr_commit_node
+            pr_marshallers.marshal_pr_node
         )
         return true
     end

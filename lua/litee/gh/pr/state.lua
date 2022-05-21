@@ -387,7 +387,7 @@ function M.get_review_threads_async(pull_number, cb)
                 end
                 -- if a child is new add notification for the thread
                 for _, child in ipairs(t.children) do
-                    if M.pull_state.notifications_by_id[child.name] then
+                    if M.pull_state.notifications_by_id[child.key] then
                         M.pull_state.notifications_by_id[id] = t
                         t.expanded = true
                     end

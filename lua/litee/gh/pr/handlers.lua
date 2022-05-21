@@ -159,7 +159,7 @@ function M.ui_handler(refresh, on_load_ui)
         lib_tree.write_tree_no_guide_leaf(
             state.buf,
             state.tree,
-            marshaller.marshal_pr_commit_node
+            marshaller.marshal_pr_node
         )
     else
         -- we have no state, so open up the panel or popout to create
@@ -292,7 +292,7 @@ function M.review_handler(review_id, refresh)
         lib_tree.write_tree_no_guide_leaf(
             state.buf,
             state.tree,
-            marshaller.marshal_pr_commit_node
+            marshaller.marshal_pr_node
         )
     else
         -- we have no state, so open up the panel or popout to create

@@ -450,7 +450,7 @@ function M.collapse_pr()
     lib_tree.write_tree_no_guide_leaf(
         ctx.state["pr"].buf,
         ctx.state["pr"].tree,
-        marshaler.marshal_pr_commit_node
+        marshaler.marshal_pr_node
     )
     vim.api.nvim_win_set_cursor(ctx.state["pr"].win, ctx.pr_cursor)
 end
@@ -470,7 +470,7 @@ function M.expand_pr()
     lib_tree.write_tree_no_guide_leaf(
         ctx.state["pr"].buf,
         ctx.state["pr"].tree,
-        marshaler.marshal_pr_commit_node
+        marshaler.marshal_pr_node
     )
     vim.api.nvim_win_set_cursor(ctx.state["pr"].win, ctx.pr_cursor)
 end
@@ -861,9 +861,9 @@ end
 -- removing notifications.
 local function write_trees(ctx)
     local args = {
-        {"pr", marshaler.marshal_pr_commit_node},
+        {"pr", marshaler.marshal_pr_node},
         {"pr_files", marshaler.marshal_pr_file_node},
-        {"pr_review", marshaler.marshal_pr_commit_node},
+        {"pr_review", marshaler.marshal_pr_node},
     }
     for _, arg in ipairs(args) do
         if

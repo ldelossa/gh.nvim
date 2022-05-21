@@ -21,8 +21,6 @@ function M.build_reviews_subtree(depth, prev_tree)
     if prev_root ~= nil then
         root.expanded = prev_root.expanded
     end
-    -- function M.marshal_pr_commit_node(node) will look for generic detail
-    -- fields and pass the name, details, icon fields as is.
     root.details = {
         name = root.name,
         detail = "",
@@ -44,8 +42,6 @@ function M.build_reviews_subtree(depth, prev_tree)
             depth+1 -- we a subtree of root
         )
         r.expanded = true
-        -- function M.marshal_pr_commit_node(node) will look for generic detail
-        -- fields and pass the name, details, icon fields as is.
         r.review =  review
         table.insert(root.children, r)
         ::continue::

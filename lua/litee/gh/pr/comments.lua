@@ -9,8 +9,6 @@ function M.build_conversation_tree(depth)
         depth -- we a subtree of root
     )
     root.expanded = true
-    -- function M.marshal_pr_commit_node(node) will look for generic detail
-    -- fields and pass the name, details, icon fields as is.
     root.details = {
         name = root.name,
         detail = "",
