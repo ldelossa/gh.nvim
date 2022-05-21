@@ -39,12 +39,7 @@ function M.ui_handler(refresh, on_load_ui)
 
     -- refresh var from closure.
     if not refresh then
-        local remote_url = ""
-        if config.prefer_https_remote then
-            remote_url = s.pull_state.pr_raw["head"]["repo"]["clone_url"]
-        else
-            remote_url = s.pull_state.pr_raw["head"]["repo"]["ssh_url"]
-        end
+        local remote_url = s.get_pr_remote_url()
         local remote_name = "litee-gh_" .. s.pull_state.pr_raw["head"]["repo"]["full_name"]
         local head_branch = s.pull_state.pr_raw["head"]["ref"]
 

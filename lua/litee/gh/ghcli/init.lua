@@ -680,4 +680,9 @@ function M.get_check_runs_by_suite(suite_id, on_read)
     async_request(args, on_read, true)
 end
 
+function M.get_git_protocol()
+	local cmd = [[gh config get git_protocol]]
+	return gh_exec(cmd)
+end
+
 return M

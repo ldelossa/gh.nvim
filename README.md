@@ -98,14 +98,6 @@ require('litee.gh').setup({
     jump_mode   = "invoking",
     -- remap the arrow keys to resize any litee.nvim windows.
     map_resize_keys = false,
-    -- by default gh.nvim adds the remote of the pull request's HEAD as an
-    -- ssh_url. If you do not have ssh keys configured in GitHub this flag will
-    -- use the https clone address instead.
-    --
-    -- be aware, for gh.nvim to work correctly with private repositories, you
-    -- should configure ssh keys and use the default settings. gh.nvim will not
-    -- prompt for https authentication.
-    prefer_https_remote = false,
     -- do not map any keys inside any gh.nvim buffers.
     disable_keymaps = false,
     -- defines keymaps in gh.nvim buffers.
