@@ -1,4 +1,5 @@
 local pr = require('litee.gh.pr')
+local issues = require('litee.gh.issues')
 local dv = require('litee.gh.pr.diff_view')
 local pr_handlers = require('litee.gh.pr.handlers')
 local helpers = require('litee.gh.helpers')
@@ -58,6 +59,9 @@ function M.setup()
     vim.api.nvim_create_user_command("GHAddLabel", pr.add_label, {})
     -- If possible, open the node under the cursor in your web browser.
     vim.api.nvim_create_user_command("GHViewWeb",  pr.open_node_url, {})
+    -- Open an issue, if a number is provided it will be opened directly, if not
+    -- a vim.ui.select with all repo issues is opened for selection.
+    vim.api.nvim_create_user_command("GHOpenIssue", issues.open_issue, {nargs="?"})
 end
 
 return M

@@ -121,8 +121,8 @@ local function setup_buffer()
     vim.api.nvim_buf_set_option(state.buf, 'wrapmargin', 0)
     vim.api.nvim_buf_set_option(state.buf, 'ofu', 'v:lua.GH_completion')
 
-    vim.api.nvim_buf_set_keymap(state.buf, 'n', "<C-s>", "", {callback=M.submit})
-    vim.api.nvim_buf_set_keymap(state.buf, 'n', "<C-a>", "", {callback=M.comment_actions})
+    vim.api.nvim_buf_set_keymap(state.buf, 'n', config.keymaps.submit_comment, "", {callback=M.submit})
+    vim.api.nvim_buf_set_keymap(state.buf, 'n', config.keymaps.actions, "", {callback=M.comment_actions})
     if not config.disable_keymaps then
         vim.api.nvim_buf_set_keymap(state.buf, 'n', config.keymaps.goto_issue, "", {callback=helpers.open_issue_under_cursor})
     end
@@ -286,7 +286,7 @@ function M.render_comments()
         table.insert(buffer_lines, l)
     end
     table.insert(buffer_lines, symbols.left)
-    table.insert(buffer_lines, string.format("%s (ctrl-s:submit)(ctrl-a:comment actions)", symbols.bottom))
+    table.insert(buffer_lines, string.format("%s (submit: %s)(comment actions: %s)", symbols.bottom, config.keymaps.submit_comment, config.keymaps.actions))
     table.insert(marks_to_create, {#buffer_lines, s.pull_state.pr_raw})
     table.insert(buffer_lines, "")
 

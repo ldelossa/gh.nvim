@@ -19,7 +19,7 @@ function M.open_issue_under_cursor()
     end
 
     local format = vim.fn.substitute(issue_number, "#", "", "")
-    issues.open_issue(format)
+    issues.open_issue_by_number(format)
 end
 
 function M.preview_issue_under_cursor()

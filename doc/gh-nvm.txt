@@ -284,7 +284,7 @@ Code Reviews:
 Commands                                                               *gh-commands*
 
     -- use a vim.ui.select prompt to open one of the first 100 pull requests.
-    vim.api.nvim_create_user_command("GHOpenPR", pr.open_pull, {})
+    vim.api.nvim_create_user_command("GHOpenPR", pr.open_pull, {nargs="?"})
     -- open the Pull Request panel in the side bar panel
     vim.api.nvim_create_user_command("GHOpenToPR", pr.open_to_pr, {})
     -- open the Pull Request panel in a pop out window
@@ -322,19 +322,22 @@ Commands                                                               *gh-comma
     -- when cursor is on a commented line of a diff view, move to the next convo buffer
     vim.api.nvim_create_user_command("GHNextThread", dv.next_thread, {})
     -- when cursor is on a line which can be commented in a diff view, create a comment
-    vim.api.nvim_create_user_command("GHCreateThread", dv.create_comment, {})
+    vim.api.nvim_create_user_command("GHCreateThread", dv.create_comment, {range=true})
     -- close a PR and cleanup any state associated with it (happens on tab and neovim close as well)
     vim.api.nvim_create_user_command("GHClosePR", pr.close_pull, {})
     -- close the Commit panel
-    vim.api.nvim_create_user_command("GHCloseCommit", pr.close_pr_commits, {})
+    vim.api.nvim_create_user_command("GHCloseCommit", function() pr.close_pr_commits(nil) end, {})
     -- close the Review panel
-    vim.api.nvim_create_user_command("GHCloseReview", pr.close_pr_review, {})
+    vim.api.nvim_create_user_command("GHCloseReview", function () pr.close_pr_review(nil) end, {})
     -- preview the issue or pull request number under the cursor
     vim.api.nvim_create_user_command("GHPreviewIssue", helpers.preview_issue_under_cursor, {})
     -- Add a label to the currently opened pull request.
     vim.api.nvim_create_user_command("GHAddLabel", pr.add_label, {})
     -- If possible, open the node under the cursor in your web browser.
     vim.api.nvim_create_user_command("GHViewWeb",  pr.open_node_url, {})
+    -- Open an issue, if a number is provided it will be opened directly, if not
+    -- a vim.ui.select with all repo issues is opened for selection.
+    vim.api.nvim_create_user_command("GHOpenIssue", issues.open_issue, {nargs="?"})
 
 ====================================================================================
 Conf                                                                     *gh-config*
@@ -361,17 +364,30 @@ M.config = {
     disable_keymaps = false,
     -- defines keymaps in gh.nvim buffers.
     keymaps = {
-        -- used to open a node in a gh.nvim tree
+        -- when inside a gh.nvim panel, this key will open a node if it has
+        -- any futher functionality. for example, hitting <CR> on a commit node
+        -- will open the commit's changed files in a new gh.nvim panel.
         open = "<CR>",
-        -- expand a node in a gh.nvim tree
+        -- when inside a gh.nvim panel, expand a collapsed node
         expand = "zo",
-        -- collapse the node in a gh.nvim tree
+        -- when inside a gh.nvim panel, collpased and expanded node
         collapse = "zc",
-        -- when cursor is ontop of a '#123' formatted issue reference, open a 
-        -- new tab with the issue details and comments.
+        -- when cursor is over a "#1234" formatted issue or PR, open its details
+        -- and comments in a new tab.
         goto_issue = "gd",
-        -- show details associated with a node, for example the commit message
-        -- for a commit node in the gh.nvim tree.
-        details = "d"
+        -- show any details about a node, typically, this reveals commit messages
+        -- and submitted review bodys.
+        details = "d",
+        -- inside a convo buffer, submit a comment
+        submit_comment = "<C-s>",
+        -- inside a convo buffer, when your cursor is ontop of a comment, open
+        -- up a set of actions that can be performed.
+        actions = "<C-a>",
+        -- inside a thread convo buffer, resolve the thread.
+        resolve_thread = "<C-r>",
+        -- inside a gh.nvim panel, if possible, open the node's web URL in your
+        -- browser. useful particularily for digging into external failed CI
+        -- checks.
+        goto_web = "gx"
     },
 }

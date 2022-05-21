@@ -39,6 +39,10 @@ local function register_pr_component()
                 silent = true,
                 callback = pr.collapse_pr,
             })
+            vim.api.nvim_buf_set_keymap(state["pr"].buf, "n", config.keymaps.goto_web, "",{
+                silent = true,
+                callback = pr.open_node_url,
+            })
         end
 
         lib_tree.write_tree_no_guide_leaf(
@@ -88,6 +92,10 @@ local function register_pr_files_component()
                 silent = true,
                 callback = pr.collapse_pr_commits,
             })
+            vim.api.nvim_buf_set_keymap(state["pr_files"].buf, "n", config.keymaps.goto_web, "",{
+                silent = true,
+                callback = pr.open_node_url,
+            })
         end
 
         lib_tree.write_tree_no_guide_leaf(
@@ -132,6 +140,10 @@ local function register_pr_review_component()
             vim.api.nvim_buf_set_keymap(state["pr_review"].buf, "n", config.keymaps.collapse, "",{
                 silent = true,
                 callback = pr.collapse_pr_review,
+            })
+            vim.api.nvim_buf_set_keymap(state["pr_review"].buf, "n", config.keymaps.goto_web, "",{
+                silent = true,
+                callback = pr.open_node_url,
             })
         end
 

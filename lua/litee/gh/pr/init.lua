@@ -215,7 +215,6 @@ function M.open_pull(args)
                     function(choice)
                         if choice == "yes" then
                             M.close_pull()
-                            -- handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () setup_refresh_timer_focus() on_tab_close() end ))
                             handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
                         end
                     end

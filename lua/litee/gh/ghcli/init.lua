@@ -93,7 +93,7 @@ local function async_request(args, on_read, paginate, page, paged_data)
             end
 
             if paginate then
-                if #data == 100 then
+                if #data > 0 then
                     -- paginate
                     async_request(args, on_read, paginate, page+1, paged_data)
                     return
@@ -129,6 +129,12 @@ end
 function M.list_repo_issues_async(on_read)
     local args = {"api", "-X", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/issues"}
     async_request(args, on_read)
+end
+
+function M.list_all_repo_issues_async(on_read)
+    lib_notify.notify_popup_with_timeout("Fetching all repo issues this could take a bit...", 7500, "info")
+    local args = {"api", "-X", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/issues", "-q", '. | map(select(. | (has("pull_request") | not)))'}
+    async_request(args, on_read, true)
 end
 
 function M.get_user_async(on_read)

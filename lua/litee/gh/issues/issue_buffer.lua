@@ -153,12 +153,7 @@ local function render_comment(comment)
         icon_set = lib_icons[config.icon_set]
     end
     local lines = {}
-    -- local reaction_lines = count_reactions(comment)
     local reaction_string = ""
-    -- for r, count in pairs(reaction_lines) do
-    --     reaction_string = reaction_string .. reactions.reaction_map[r] .. count .. " "
-    -- end
-
     local author = comment["user"]["login"]
     local title = string.format("%s %s  %s", symbols.top, icon_set["Account"], author)
     table.insert(lines, title)
@@ -514,52 +509,6 @@ function M.delete_comment()
         end
     )
 end
-
--- function M.reaction()
---     local comment = comment_under_cursor()
---     if comment == nil then
---         return
---     end
---     local items = {}
---     local _, user_reactions = count_reactions(comment)
---     for name, icon in pairs(reactions.reaction_map) do
---         table.insert(items, icon .. " " .. name)
---     end
---     vim.ui.select(
---         reactions.reaction_names,
---         {
---             prompt = "Select a reaction: ",
---             format_item = function(item)
---                 return reactions.reaction_map[item] .. " " .. item
---             end
---         },
---         function(_, idx)
---             if user_reactions[reactions.reaction_names[idx]] == true then
---                 ghcli.remove_reaction_async(comment["id"], reactions.reaction_names[idx], vim.schedule_wrap(function(err, data)
---                     if err then
---                         lib_notify.notify_popup_with_timeout("Failed to add reaction.", 7500, "error")
---                         return
---                     end
---                     if data == nil then
---                         lib_notify.notify_popup_with_timeout("Failed to add reaction.", 7500, "error")
---                         return
---                     end
---                 end))
---             else
---                 ghcli.add_reaction(comment["id"], reactions.reaction_names[idx], vim.schedule_wrap(function(err, data)
---                     if err then
---                         lib_notify.notify_popup_with_timeout("Failed to add reaction.", 7500, "error")
---                         return
---                     end
---                     if data == nil then
---                         lib_notify.notify_popup_with_timeout("Failed to add reaction.", 7500, "error")
---                         return
---                     end
---                 end))
---             end
---         end
---     )
--- end
 
 -- submit submits the latest changes in the thread buffer to the Github API.
 function M.submit()
