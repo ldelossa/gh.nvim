@@ -136,12 +136,8 @@ Code Review Environment:
 
     Additionally, you must be aware of how git will fetch a repository. 
 
-    By default gh.nvm will use the ssh url when it adds a remote. 
-
-    You must have ssh keys configured in GitHub for this to work correctly.
-
-    Alternatively you can use the "prefer_https_remote" config flag to utilize
-    the https clone address.
+    gh.nvim will use the git_protocol defined in your gh config.
+    Run `gh config get git_protocol` to see the current protocol.
 
 Configuration:
     A simplest possible configuration, using all the defaults, will look like 
@@ -352,14 +348,6 @@ M.config = {
     jump_mode   = "invoking",
     -- remap the arrow keys to resize any litee.nvim windows.
     map_resize_keys = false,
-    -- by default gh.nvim adds the remote of the pull request's HEAD as an
-    -- ssh_url. If you do not have ssh keys configured in GitHub this flag will
-    -- use the https clone address instead. 
-    --
-    -- be aware, for gh.nvim to work correctly with private repositories, you 
-    -- should configure ssh keys and use the default settings. gh.nvim will not
-    -- prompt for https authentication.
-    prefer_https_remote = false,
     -- do not map any keys inside any gh.nvim buffers.
     disable_keymaps = false,
     -- defines keymaps in gh.nvim buffers.

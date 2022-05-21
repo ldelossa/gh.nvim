@@ -259,12 +259,7 @@ local function should_fetch(old_commits, new_commits)
 end
 
 local function git_fetch()
-    local remote_url = ""
-    if config.prefer_https_remote then
-        remote_url = M.pull_state.pr_raw["head"]["repo"]["clone_url"]
-    else
-        remote_url = M.pull_state.pr_raw["head"]["repo"]["ssh_url"]
-    end
+    local remote_url = M.get_pr_remote_url()
     local ok, remote = gitcli.remote_exists(remote_url)
     if not ok then
         -- really shouldn't happen
@@ -286,12 +281,7 @@ local function git_reset()
         lib_notify.notify_popup_with_timeout("Git history has changed, want to reset to remote but repo is dirty. Please stash changes and run GHRefreshPR", 7500, "error")
         return false
     end
-    local remote_url = ""
-    if config.prefer_https_remote then
-        remote_url = M.pull_state.pr_raw["head"]["repo"]["clone_url"]
-    else
-        remote_url = M.pull_state.pr_raw["head"]["repo"]["ssh_url"]
-    end
+    local remote_url = M.get_pr_remote_url()
     local ok, remote = gitcli.remote_exists(remote_url)
     if not ok then
         -- really shouldn't happen
@@ -548,6 +538,19 @@ function M.get_pr_data_async(pull_number, cb)
         M.pull_state.pr_raw = data
         cb()
     end)
+end
+
+function M.get_pr_remote_url()
+  local remote_url = ''
+
+  local protocol = ghcli.get_git_protocol()
+  if protocol == 'https' then
+    remote_url = M.pull_state.pr_raw['head']['repo']['clone_url']
+  else
+    remote_url = M.pull_state.pr_raw['head']['repo']['ssh_url']
+  end
+
+  return remote_url
 end
 
 M.reset_pull_state()
