@@ -247,7 +247,7 @@ local function render_comment(comment, thread_stale)
     return lines
 end
 
-function M.create_thread(details, on_create)
+function M.create_thread(details)
     if config.icon_set ~= nil then
         icon_set = lib_icons[config.icon_set]
     end
@@ -269,7 +269,7 @@ function M.create_thread(details, on_create)
 
     -- set some additional book keeping state.
     state.buffer_end = #buffer_lines
-    state.creating_comment = {details, on_create}
+    state.creating_comment = details
 
     M.set_modifiable(false)
 
@@ -277,7 +277,7 @@ function M.create_thread(details, on_create)
 end
 
 function M.restore_comment_create(displayed)
-    M.create_thread(state.creating_comment[1], state.creating_comment[2])
+    M.create_thread(state.creating_comment)
     local new_buf_end = #displayed.text_area
     M.set_modifiable(true)
     vim.api.nvim_buf_set_lines(state.buf, state.text_area_off, new_buf_end, false, displayed.text_area)
@@ -604,7 +604,6 @@ function M.resolve_thread_toggle()
             return
         end
     end
-
     -- perform refresh of comments data
     vim.cmd("GHRefreshComments")
 end
@@ -648,7 +647,6 @@ end
 -- and then reset that field to nil.
 local function update(body)
     local rest_id = comment_rest_id(state.editing_comment)
-    state.editing_comment = nil
     local out = ghcli.update_comment(rest_id, body)
     if out == nil then
         return nil
@@ -791,10 +789,10 @@ function M.submit()
           return
        end
     elseif state.creating_comment ~= nil then
-       -- details we need to create the commit are stashed on this state field
-       local details = state.creating_comment[1]
-       create(body, details)
-       local details = state.creating_comment[2]()
+       create(body, state.creating_comment)
+       if state.creating_comment.on_create ~= nil then
+         state.creating_comment.on_create()
+       end
        vim.cmd("GHRefreshComments")
        state.creating_comment = nil
        return
@@ -805,12 +803,6 @@ function M.submit()
           return
        end
     end
-
-    M.set_modifiable(true)
-    vim.api.nvim_buf_set_lines(state.buf, state.text_area_off, -1, false, {})
-    M.set_modifiable(false)
-    -- perform refresh of comments data.
-    vim.cmd("GHRefreshComments")
 end
 
 function M.comment_actions()

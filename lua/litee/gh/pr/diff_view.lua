@@ -691,11 +691,12 @@ function M.create_comment(args)
         side = side,
         line = line,
         end_line = end_line,
-        original_buf = original_buf
+        original_buf = original_buf,
+        -- after creation set state.displayed_thread to nil so we don't render
+        -- a nil thread on refresh.
+        on_create = function() state.displayed_thread = nil end
     }
-    local buf = thread_buffer.create_thread(details, function()
-        state.displayed_thread = nil
-    end)
+    local buf = thread_buffer.create_thread(details)
 
     local win = nil
     if side == "RIGHT" then
