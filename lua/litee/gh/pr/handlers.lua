@@ -80,12 +80,10 @@ function M.ui_handler(refresh, on_load_ui)
     local state = lib_state.get_component_state(cur_tabpage, "pr")
     if state == nil then
         state = {}
-        -- if state.tree ~= nil then
-        --     lib_tree.remove_tree(state.tree)
-        -- end
         state.tree = lib_tree.new_tree("pr")
         state.invoking_win = vim.api.nvim_get_current_win()
         state.tab = cur_tabpage
+        state_was_nil = true
     end
     s.pull_state.tab = state.tab
 
@@ -142,47 +140,43 @@ function M.ui_handler(refresh, on_load_ui)
     local global_state = lib_state.put_component_state(cur_tabpage, "pr", state)
 
     local cursor = nil
-    if global_state["pr"].win ~= nil and
-       vim.api.nvim_win_is_valid(global_state["pr"].win) then
-       cursor = vim.api.nvim_win_get_cursor(global_state["pr"].win)
-   end
-
-    -- state was not nil, can we reuse the existing win
-    -- and buffer?
     if
-        (not state_was_nil
-        and state.win ~= nil
-        and vim.api.nvim_win_is_valid(state.win)
-        and state.buf ~= nil
-        and vim.api.nvim_buf_is_valid(state.buf))
-        or refresh
+        global_state["pr"].win ~= nil and
+        vim.api.nvim_win_is_valid(global_state["pr"].win)
     then
-        lib_tree.write_tree_no_guide_leaf(
-            state.buf,
-            state.tree,
-            marshaller.marshal_pr_node
-        )
-    else
-        -- we have no state, so open up the panel or popout to create
-        -- a window and buffer.
-        if config.on_open == "popout" then
-            lib_panel.popout_to("pr", global_state)
-        else
-            lib_panel.toggle_panel(global_state, true, false)
-        end
-    end
-    if not refresh then
-        local buf = pr_buffer.render_comments()
-        vim.api.nvim_win_set_buf(0, buf)
+       cursor = vim.api.nvim_win_get_cursor(global_state["pr"].win)
     end
 
-    if cursor ~= nil then
-        lib_util.safe_cursor_reset(global_state["pr"].win, cursor)
-    end
+    if
+        state_was_nil
+    then
+         -- we have no state, so open up the panel or popout to create
+         -- a window and buffer.
+         if config.on_open == "popout" then
+             lib_panel.popout_to("pr", global_state)
+         else
+             lib_panel.toggle_panel(global_state, true, false)
+         end
+     else
+         lib_tree.write_tree_no_guide_leaf(
+             state.buf,
+             state.tree,
+             marshaller.marshal_pr_node
+         )
+     end
 
-    if on_load_ui ~= nil then
-        on_load_ui()
-    end
+     if not refresh then
+         local buf = pr_buffer.render_comments()
+         vim.api.nvim_win_set_buf(0, buf)
+     end
+
+     if cursor ~= nil then
+         lib_util.safe_cursor_reset(global_state["pr"].win, cursor)
+     end
+
+     if on_load_ui ~= nil then
+         on_load_ui()
+     end
 end
 
 function M.pr_handler(pull_number, refresh, on_load_ui)
@@ -225,16 +219,13 @@ function M.review_handler(review_id, refresh)
     local state = lib_state.get_component_state(cur_tabpage, "pr_review")
     if state == nil then
         state = {}
-        -- create new tree, throwing old one out if exists
-        if state.tree ~= nil then
-            lib_tree.remove_tree(state.tree)
-        end
         state.tree = lib_tree.new_tree("pr_review")
         -- store the window invoking the filetree, jumps will
         -- occur here.
         state.invoking_win = vim.api.nvim_get_current_win()
         -- store the tab which invoked the filetree.
         state.tab = cur_tabpage
+        state_was_nil = true
     end
 
     local review = s.pull_state.reviews_by_node_id[review_id]
@@ -279,24 +270,15 @@ function M.review_handler(review_id, refresh)
     -- and buffer?
     local cursor = nil
     if
-        (not state_was_nil
-        and state.win ~= nil
-        and vim.api.nvim_win_is_valid(state.win)
-        and state.buf ~= nil
-        and vim.api.nvim_buf_is_valid(state.buf))
-        or (refresh
-            and state.win ~= nil
-            and vim.api.nvim_win_is_valid(state.win)
-            and state.buf ~= nil
-            and vim.api.nvim_buf_is_valid(state.buf))
+        global_state["pr_review"].win ~= nil and
+        vim.api.nvim_win_is_valid(global_state["pr_review"].win)
     then
-        cursor = vim.api.nvim_win_get_cursor(state.win)
-        lib_tree.write_tree_no_guide_leaf(
-            state.buf,
-            state.tree,
-            marshaller.marshal_pr_node
-        )
-    else
+       cursor = vim.api.nvim_win_get_cursor(global_state["pr_review"].win)
+    end
+
+    if
+        state_was_nil
+    then
         -- we have no state, so open up the panel or popout to create
         -- a window and buffer.
         if config.on_open == "popout" then
@@ -304,6 +286,12 @@ function M.review_handler(review_id, refresh)
         else
             lib_panel.toggle_panel(global_state, true, false)
         end
+    else
+        lib_tree.write_tree_no_guide_leaf(
+            state.buf,
+            state.tree,
+            marshaller.marshal_pr_node
+        )
     end
 
     if cursor ~= nil then
@@ -329,16 +317,13 @@ function M.commits_handler(sha, refresh)
     local state = lib_state.get_component_state(cur_tabpage, "pr_files")
     if state == nil then
         state = {}
-        -- create new tree, throwing old one out if exists
-        if state.tree ~= nil then
-            lib_tree.remove_tree(state.tree)
-        end
         state.tree = lib_tree.new_tree("pr_files")
         -- store the window invoking the filetree, jumps will
         -- occur here.
         state.invoking_win = vim.api.nvim_get_current_win()
         -- store the tab which invoked the filetree.
         state.tab = cur_tabpage
+        state_was_nil = true
     end
 
     local pull_commit = s.pull_state.commits_by_sha[sha]
@@ -394,24 +379,15 @@ function M.commits_handler(sha, refresh)
     -- and buffer?
     local cursor = nil
     if
-        (not state_was_nil
-        and state.win ~= nil
-        and vim.api.nvim_win_is_valid(state.win)
-        and state.buf ~= nil
-        and vim.api.nvim_buf_is_valid(state.buf))
-        or (refresh
-            and state.win ~= nil
-            and vim.api.nvim_win_is_valid(state.win)
-            and state.buf ~= nil
-            and vim.api.nvim_buf_is_valid(state.buf))
+        global_state["pr_files"].win ~= nil and
+        vim.api.nvim_win_is_valid(global_state["pr_files"].win)
     then
-        cursor = vim.api.nvim_win_get_cursor(state.win)
-        lib_tree.write_tree_no_guide_leaf(
-            state.buf,
-            state.tree,
-            marshaller.marshal_pr_file_node
-        )
-    else
+       cursor = vim.api.nvim_win_get_cursor(global_state["pr_files"].win)
+    end
+
+    if
+        state_was_nil
+    then
         -- we have no state, so open up the panel or popout to create
         -- a window and buffer.
         if config.on_open == "popout" then
@@ -419,6 +395,12 @@ function M.commits_handler(sha, refresh)
         else
             lib_panel.toggle_panel(global_state, true, false)
         end
+    else
+        lib_tree.write_tree_no_guide_leaf(
+            state.buf,
+            state.tree,
+            marshaller.marshal_pr_file_node
+        )
     end
 
     -- checkout the commit locally, we already did a fetch for the branch when
@@ -444,7 +426,7 @@ function M.commits_handler(sha, refresh)
     state.last_opened_commit = commit
 end
 
-local function commit_exists(sha) 
+local function commit_exists(sha)
     for _, c in ipairs(s.pull_state.commits) do
         if c["sha"] == sha then
             return true
