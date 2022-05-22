@@ -682,7 +682,12 @@ end
 
 function M.get_git_protocol()
 	local cmd = [[gh config get git_protocol]]
-	return gh_exec(cmd)
+  local protocol, e = gh_exec(cmd, true);
+  if protocol == nil then
+    return nil, e
+  end
+
+  return protocol:gsub("[\r\n]", "")
 end
 
 return M
