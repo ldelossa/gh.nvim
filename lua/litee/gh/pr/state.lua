@@ -68,9 +68,6 @@ local pull_state_proto = {
     check_runs = {}
 }
 
--- a global flag which informs others that state is being refreshed.
-M.refreshing = false
-
 -- pull_state holds the state of our singleton pull request.
 --
 -- since litee-gh pull requests manipulate the git repository, only a single
@@ -553,13 +550,14 @@ function M.get_pr_remote_url()
   return remote_url
 end
 
-M.reset_pull_state()
-
 -- WELCOME TO CALLBACK HELL.
 --
 -- load all the data we need to open a PR and all its components in a giant
 -- callback chain.
 function M.load_state_async(pull_number, on_load)
+    if M.pull_state == nil then
+        M.pull_state = {}
+    end
     M.get_pr_data_async(pull_number, function()
         M.get_user_data_async(function()
             M.get_pull_files_async(pull_number, function()

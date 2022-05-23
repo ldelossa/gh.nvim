@@ -431,7 +431,6 @@ function M.render_thread(thread_id, n_of, displayed_thread)
     table.insert(buffer_lines, string.format("%s (submit: %s)(comment actions: %s)(un/resolve: %s)", symbols.bottom, config.keymaps.submit_comment, config.keymaps.actions, config.keymaps.resolve_thread))
     table.insert(buffer_lines, "")
 
-
     -- render root comment
     local stale = false
     if thread.thread["isOutdated"] then

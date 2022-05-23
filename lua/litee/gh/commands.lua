@@ -1,5 +1,4 @@
 local pr = require('litee.gh.pr')
-local issues = require('litee.gh.issues')
 local dv = require('litee.gh.pr.diff_view')
 local pr_handlers = require('litee.gh.pr.handlers')
 local issues = require('litee.gh.issues')
@@ -30,9 +29,11 @@ function M.setup()
     -- expand the node within the Review panel
     vim.api.nvim_create_user_command("GHExpandReview", pr.expand_pr_review, {})
     -- refresh all details of the PR
-    vim.api.nvim_create_user_command("GHRefreshPR", pr_handlers.global_refresh, {})
+    vim.api.nvim_create_user_command("GHRefreshPR", pr_handlers.on_refresh, {})
     -- refresh just comments, useful to fresh convo buffers quicker.
     vim.api.nvim_create_user_command("GHRefreshComments", pr_handlers.refresh_comments, {})
+    -- refresh any open issue buffers, if a PR is opened, this will be ran as part of "GHRefreshPR"
+    vim.api.nvim_create_user_command("GHRefreshIssues", issues.on_refresh, {})
     -- start a code review
     vim.api.nvim_create_user_command("GHStartReview", pr.start_review, {})
     -- submit all pending comments in a code review

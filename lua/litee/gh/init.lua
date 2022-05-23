@@ -10,6 +10,9 @@ local config            = require('litee.gh.config').config
 local pr_buffer         = require('litee.gh.pr.buffer')
 local pr_marshallers    = require('litee.gh.pr.marshal')
 local pr                = require('litee.gh.pr')
+local pr_state          = require('litee.gh.pr.state')
+local pr_handlers       = require('litee.gh.pr.handlers')
+local issues            = require('litee.gh.issues')
 
 -- register_pr_component registers the "pr" litee component.
 --
@@ -205,5 +208,42 @@ function M.setup(user_config)
     register_pr_review_component()
     commands.setup()
 end
+
+function M.refresh()
+    if pr_state.pull_state ~= nil then
+        -- will refresh any open issues too
+        pr_handlers.on_refresh()
+        return
+    else
+        issues.on_refresh()
+    end
+end
+
+-- refresh all data
+vim.api.nvim_create_user_command("GHRefresh", M.refresh, {})
+
+M.refresh_timer = nil
+
+function M.start_refresh_timer(now)
+    if M.refresh_timer == nil then
+        M.refresh_timer = vim.loop.new_timer()
+    end
+    if now then
+        M.refresh()
+    end
+    vim.schedule(function() vim.api.nvim_echo({{"[gh.nvim] started backround refresh with interval " .. 180000/1000/60 .. " minutes", "LTInfo"}}, false, {}) end)
+    M.refresh_timer:start(180000, 180000, function()
+        M.refresh()
+    end)
+end
+
+function M.stop_refresh_timer()
+    if M.refresh_timer == nil then
+        return
+    end
+    vim.loop.timer_stop(M.refresh_timer)
+end
+
+M.start_refresh_timer()
 
 return M

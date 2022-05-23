@@ -18,9 +18,10 @@ local gitcli        = require('litee.gh.gitcli')
 local marshaller    = require('litee.gh.pr.marshal')
 local diff_view     = require('litee.gh.pr.diff_view')
 local thread_buffer = require('litee.gh.pr.thread_buffer')
-local pr_buffer     = require('litee.gh.pr.pr_buffer')
 local reviews       = require('litee.gh.pr.reviews')
 local checks        = require('litee.gh.pr.checks')
+local issues        = require('litee.gh.issues')
+
 
 local M = {}
 
@@ -161,8 +162,7 @@ function M.ui_handler(refresh, on_load_ui)
      end
 
      if not refresh then
-         local buf = pr_buffer.render_comments()
-         vim.api.nvim_win_set_buf(0, buf)
+         issues.open_issue_by_number(s.pull_state.number, true)
      end
 
      if cursor ~= nil then
@@ -459,15 +459,13 @@ local function on_refresh()
             M.review_handler(review["id"], true)
         end
 
-        -- refresh auxiliary UI components.
         diff_view.on_refresh()
-        -- thread_buffer.on_refresh()
-        pr_buffer.render_comments()
+        issues.on_refresh()
 end
 
--- global refresh will reload all aspects of a PR and handle discrepencies from
--- our local state and the new state.
-function M.global_refresh()
+-- reloads all aspects of a PR along with any open Issue buffers (because one
+-- may be the PR issue).
+function M.on_refresh()
     M.pr_handler(s.pull_state.number, true, vim.schedule_wrap(on_refresh))
 end
 
