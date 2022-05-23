@@ -7,7 +7,7 @@ local ghcli         = require('litee.gh.ghcli')
 local s             = require('litee.gh.pr.state')
 local reactions     = require('litee.gh.pr.reactions')
 local reactions_map = require('litee.gh.pr.reactions').reaction_map
-local helpers       = require('litee.gh.helpers')
+local issues       = require('litee.gh.issues')
 
 local M = {}
 
@@ -157,7 +157,7 @@ local function setup_buffer()
     vim.api.nvim_buf_set_keymap(state.buf, 'n', config.keymaps.resolve_thread, "", {callback=M.resolve_thread_toggle})
     vim.api.nvim_buf_set_keymap(state.buf, 'n', config.keymaps.actions, "", {callback=M.comment_actions})
     if not config.disable_keymaps then
-        vim.api.nvim_buf_set_keymap(state.buf, 'n', config.keymaps.goto_issue, "", {callback=helpers.open_issue_under_cursor})
+        vim.api.nvim_buf_set_keymap(state.buf, 'n', config.keymaps.goto_issue, "", {callback=issues.open_issue_under_cursor})
     end
 
     vim.api.nvim_create_autocmd({"CursorMoved", "CursorMovedI"}, {
@@ -174,7 +174,7 @@ local function setup_buffer()
     })
     vim.api.nvim_create_autocmd({"CursorHold"}, {
         buffer = state.buf,
-        callback = helpers.preview_issue_under_cursor,
+        callback = issues.preview_issue_under_cursor,
     })
 end
 
@@ -793,9 +793,7 @@ function M.submit()
        if state.creating_comment.on_create ~= nil then
          state.creating_comment.on_create()
        end
-       vim.cmd("GHRefreshComments")
        state.creating_comment = nil
-       return
     else
        local out = reply(body)
        if out == nil then
@@ -803,6 +801,10 @@ function M.submit()
           return
        end
     end
+    M.set_modifiable(true)
+    vim.api.nvim_buf_set_lines(state.buf, state.text_area_off, -1, false, {})
+    M.set_modifiable(false)
+    vim.cmd("GHRefreshComments")
 end
 
 function M.comment_actions()

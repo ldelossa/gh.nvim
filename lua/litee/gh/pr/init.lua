@@ -16,7 +16,6 @@ local pr_buffer     = require('litee.gh.pr.pr_buffer')
 local pr_details    = require('litee.gh.pr.details')
 local marshaler     = require('litee.gh.pr.marshal')
 local config        = require('litee.gh.config').config
-local helpers       = require('litee.gh.helpers')
 
 function GH_completion(start, base)
     if start == 1 then

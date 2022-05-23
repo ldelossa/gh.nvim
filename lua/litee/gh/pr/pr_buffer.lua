@@ -596,6 +596,7 @@ function M.submit()
     M.set_modifiable(true)
     vim.api.nvim_buf_set_lines(state.buf, state.text_area_off, -1, false, {})
     M.set_modifiable(false)
+
     -- reset all pr state to grab in new comments
     vim.cmd("GHRefreshComments")
 end

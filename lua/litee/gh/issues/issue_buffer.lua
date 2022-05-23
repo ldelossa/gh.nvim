@@ -160,7 +160,6 @@ local function setup_buffer(number, preview)
 
     for _, b in ipairs(vim.api.nvim_list_bufs()) do
         if lib_path.basename(vim.api.nvim_buf_get_name(b)) == buf_name then
-            print("deleting buffer " .. buf_name)
             vim.api.nvim_buf_delete(b, {force=true})
         end
     end
@@ -315,7 +314,6 @@ function M.render_issue(number, preview)
     end
 
     M.set_modifiable(true, buf)
-    print(vim.inspect("setting lines for buf " .. buf))
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
     vim.api.nvim_buf_set_lines(buf, 0, #buffer_lines, false, buffer_lines)
     M.set_modifiable(false, buf)
