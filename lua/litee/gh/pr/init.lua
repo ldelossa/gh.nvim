@@ -12,10 +12,10 @@ local gitcli        = require('litee.gh.gitcli')
 local s             = require('litee.gh.pr.state')
 local diff_view     = require('litee.gh.pr.diff_view')
 local thread_buffer = require('litee.gh.pr.thread_buffer')
-local pr_buffer     = require('litee.gh.pr.pr_buffer')
 local pr_details    = require('litee.gh.pr.details')
 local marshaler     = require('litee.gh.pr.marshal')
 local config        = require('litee.gh.config').config
+local issues        = require('litee.gh.issues')
 
 function GH_completion(start, base)
     if start == 1 then
@@ -60,7 +60,6 @@ end
 
 local M = {}
 
-M.periodic_refresh = nil
 M.autocmds = {}
 
 local function open_nodes_url(node)
@@ -140,12 +139,12 @@ local function start_refresh_timer(now)
     end
     if now then
         vim.schedule(function () lib_notify.notify_popup_with_timeout("Refreshing Pull Request.", 7500, "info") end)
-        handlers.global_refresh()
+        handlers.on_refresh()
     end
     vim.schedule(function() vim.api.nvim_echo({{"[gh.nvim] started backround refresh with interval " .. 180000/1000/60 .. " minutes", "LTInfo"}}, false, {}) end)
     M.periodic_refresh:start(180000, 180000, function()
         vim.schedule(function () lib_notify.notify_popup_with_timeout("Refreshing Pull Request.", 7500, "info") end)
-        handlers.global_refresh() end
+        handlers.on_refresh() end
     )
 end
 
@@ -207,7 +206,7 @@ function M.open_pull(args)
             if idx == nil then
                 return
             end
-            if s.pull_state.number ~= nil then
+            if s.pull_state ~= nil and s.pull_state ~= nil then
                 vim.ui.select(
                     {"no", "yes"},
                     {prompt = string.format('A pull request is already opened, close it and open pull #%s? ', prs[idx]["number"])},
@@ -695,22 +694,7 @@ end
 
 local function open_pr_node(ctx, node)
     if node.pr ~= nil then
-        local buf = pr_buffer.render_comments()
-        local invoking_win = ctx.state["pr"].invoking_win
-        if
-            invoking_win ~= nil and
-            vim.api.nvim_win_is_valid(invoking_win)
-        then
-            vim.api.nvim_win_set_buf(invoking_win, buf)
-        else
-            local cur_win = vim.api.nvim_get_current_win()
-            vim.cmd("wincmd h")
-            if vim.api.nvim_get_current_win() == cur_win then
-                vim.cmd("vsplit")
-                vim.cmd("wincmd H")
-            end
-            vim.api.nvim_win_set_buf(0, buf)
-        end
+        issues.open_issue_by_number(node.pr["number"])
     end
     if node.commit ~= nil then
         handlers.commits_handler(node.commit["sha"])
@@ -760,8 +744,11 @@ local function open_pr_node(ctx, node)
 end
 
 function M.open_pr_buffer()
-    local buf = pr_buffer.render_comments()
-    vim.api.nvim_win_set_buf(0, buf)
+    if s.pull_state == nil then
+        lib_notify.notify_popup_with_timeout("Must open a pull request with GHOpenPR first.", 7500, "error")
+        return
+    end
+    issues.open_issue_by_number(s.pull_state.number)
 end
 
 local function open_pr_files_node(ctx, node)
@@ -953,7 +940,7 @@ function M.add_label()
     if s.pull_state == nil then
         return
     end
-    ghcli.list_labels_async(function(err, data) 
+    ghcli.list_labels_async(function(err, data)
         if err then
             vim.schedule(function () lib_notify.notify_popup_with_timeout("Failed to list labels: " .. err, 7500, "error") end)
             return
@@ -966,13 +953,13 @@ function M.add_label()
                     return item["name"]
                 end
             },
-            function(choice) 
+            function(choice)
                 ghcli.add_label_async(s.pull_state["number"], choice["name"], function(err, data)
                     if err then
                         vim.schedule(function () lib_notify.notify_popup_with_timeout("Failed to add label: " .. err, 7500, "error") end)
                         return
                     end
-                    handlers.global_refresh()
+                    handlers.on_refresh()
                 end)
             end
         )end)

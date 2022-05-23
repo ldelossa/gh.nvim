@@ -1,9 +1,11 @@
 local lib_icons     = require('litee.lib.icons')
 local lib_path      = require('litee.lib.util.path')
+local lib_util      = require('litee.lib.util')
 
 local ghcli         = require('litee.gh.ghcli')
 local lib_notify    = require('litee.lib.notify')
 local config        = require('litee.gh.config').config
+local reactions     = require('litee.gh.pr.reactions')
 
 local M = {}
 
@@ -23,7 +25,7 @@ function M.set_callbacks(cbs)
     callbacks = cbs
 end
 
-function M.on_refresh(state)
+function M.on_refresh()
     for issue, _ in pairs(M.state_by_number) do
         M.load_issue(issue,
            function() M.render_issue(issue) end
@@ -77,7 +79,7 @@ end
 
 -- load issue will asynchronously load the issue identified by its number with
 -- not hash sign and call on_load() once done.
-function M.load_issue(number, on_load, preview)
+function M.load_issue(number, on_load)
     ghcli.get_issue_async(number, function(err, issue_data)
         if err then
             lib_notify.notify_popup_with_timeout("Failed to fetch issue.", 7500, "error")
@@ -88,34 +90,25 @@ function M.load_issue(number, on_load, preview)
             return
         end
 
-        local state = nil
-        if M.state_by_number[number] ~= nil then
-            state = M.state_by_number[number]
-        else
+        local state = M.state_by_number[number]
+        if state == nil then
             state = new_issue_state()
         end
 
-        -- we do not need to load comments if we are just creating a preview
-        if not preview then
-            ghcli.get_issue_comments_async(number, function(err, comments_data)
-                if err then
-                    lib_notify.notify_popup_with_timeout("Failed to fetch issue comments.", 7500, "error")
-                    return
-                end
-                if comments_data == nil then
-                    lib_notify.notify_popup_with_timeout("Failed to fetch issue.", 7500, "error")
-                    return
-                end
-                state.comments = comments_data
-                state.issue = issue_data
-                M.state_by_number[number] = state
-                on_load()
-            end)
-        else
+        ghcli.get_issue_comments_async(number, function(err, comments_data)
+            if err then
+                lib_notify.notify_popup_with_timeout("Failed to fetch issue comments.", 7500, "error")
+                return
+            end
+            if comments_data == nil then
+                lib_notify.notify_popup_with_timeout("Failed to fetch issue.", 7500, "error")
+                return
+            end
+            state.comments = comments_data
             state.issue = issue_data
             M.state_by_number[number] = state
             on_load()
-        end
+        end)
     end)
 end
 
@@ -145,22 +138,17 @@ local function in_editable_area(state)
 end
 
 -- load_issue must be called before a buffer can be setup for the issue number.
-local function setup_buffer(number, preview)
+local function setup_buffer(number)
     if M.state_by_number[number] == nil then
         return nil
     end
 
 
-    local buf_name = ""
-    if preview then
-        buf_name = "issue #" .. number .. " preview"
-    else
-        buf_name = "issue #" .. number
-    end
-
+    -- if we have a buffer for this issue just return it.
+    local buf_name = "issue #" .. number
     for _, b in ipairs(vim.api.nvim_list_bufs()) do
         if lib_path.basename(vim.api.nvim_buf_get_name(b)) == buf_name then
-            vim.api.nvim_buf_delete(b, {force=true})
+            return b
         end
     end
 
@@ -215,13 +203,28 @@ local function parse_comment_body(body, left_sign)
     return lines
 end
 
+local function map_reactions(comment)
+    local reaction_string = ""
+    for text, count in pairs(comment.reactions) do
+        -- do this lookup first, since not all keys in the comment.reactions map
+        -- are emojis (such as url, and total_count).
+        local emoji = reactions.reaction_lookup(text)
+        if emoji ~= nil then
+            if tonumber(count) > 0 then
+                reaction_string = reaction_string .. emoji .. count .. " "
+            end
+        end
+    end
+    return reaction_string
+end
+
 local function render_comment(comment)
     local icon_set = "default"
     if config.icon_set ~= nil then
         icon_set = lib_icons[config.icon_set]
     end
     local lines = {}
-    local reaction_string = ""
+    local reaction_string = map_reactions(comment)
     local author = comment["user"]["login"]
     local title = string.format("%s %s  %s", symbols.top, icon_set["Account"], author)
     table.insert(lines, title)
@@ -239,9 +242,62 @@ local function render_comment(comment)
     return lines
 end
 
+local function restore_draft(state)
+    -- get cursor to restore if possible
+    local cursor = nil
+    if
+        state.win ~= nil and
+        vim.api.nvim_win_is_valid(state.win)
+    then
+        cursor = vim.api.nvim_win_get_cursor(state.win)
+    end
+
+    -- extract any text which may be in the issue's states text field
+    if state.buf == nil or state.text_area_off == nil then
+        return function(s)
+            -- reset the cursor if we can.
+            if cursor ~= nil then
+                lib_util.safe_cursor_reset(state.win, cursor)
+            end
+        end
+    end
+    local lines = vim.api.nvim_buf_get_lines(state.buf, state.text_area_off, -1, false)
+    local body = vim.fn.join(lines, "\n")
+    body = vim.fn.shellescape(body)
+
+    -- determine if text lines have content
+    local has_content = false
+    for _, l in ipairs(lines) do
+        if l ~= "" then
+            has_content = true
+        end
+    end
+
+    -- if has no content, nothing to restore return just a cursor reset
+    if not has_content then
+        return function(s)
+            if cursor ~= nil then
+                lib_util.safe_cursor_reset(state.win, cursor)
+            end
+        end
+    end
+
+    -- if there is content, return a function which, given the new state,
+    -- restores text and cursor
+    return function(s)
+        local buffer_lines = vim.api.nvim_buf_line_count(s.buf)
+        local new_buf_end = buffer_lines+#lines
+        M.set_modifiable(true, s.buf)
+        vim.api.nvim_buf_set_lines(s.buf, s.text_area_off, new_buf_end, false, lines)
+        M.set_modifiable(false, s.buf)
+        s.buffer_end = new_buf_end
+        lib_util.safe_cursor_reset(s.win, {new_buf_end, vim.o.columns})
+    end
+end
+
 -- render_issue will return a buffer of the issue and set the issue state's
 -- buffer field
-function M.render_issue(number, preview)
+function M.render_issue(number)
     local icon_set = "default"
     if config.icon_set ~= nil then
         icon_set = lib_icons[config.icon_set]
@@ -252,13 +308,10 @@ function M.render_issue(number, preview)
         return
     end
 
-    local buf = nil
-    if preview then
-        buf = setup_buffer(number, preview)
-    else
-        state.buf = setup_buffer(number)
-        buf = state.buf
-    end
+    local buf = setup_buffer(number)
+    state.buf = buf
+
+    local restore = restore_draft(state)
 
     local comments = state.comments
     local buffer_lines = {}
@@ -283,35 +336,26 @@ function M.render_issue(number, preview)
     for _, l in ipairs(body_lines) do
         table.insert(buffer_lines, l)
     end
-    if not preview then
-        table.insert(buffer_lines, symbols.left)
-        table.insert(buffer_lines, string.format("%s (submit: %s)(comment actions: %s)", symbols.bottom, config.keymaps.submit_comment, config.keymaps.actions))
-        table.insert(marks_to_create, {#buffer_lines, state.issue})
-    else
-        table.insert(buffer_lines, symbols.left)
-        table.insert(buffer_lines, symbols.bottom)
-    end
+    table.insert(buffer_lines, symbols.left)
+    table.insert(buffer_lines, string.format("%s (submit: %s)(comment actions: %s)", symbols.bottom, config.keymaps.submit_comment, config.keymaps.actions))
+    table.insert(marks_to_create, {#buffer_lines, state.issue})
 
-    if not preview then
-        table.insert(buffer_lines, "")
-        for _, c in ipairs(comments) do
-            local c_lines = render_comment(c)
-            for _, line in ipairs(c_lines) do
-                table.insert(buffer_lines, line)
-            end
-            table.insert(marks_to_create, {#buffer_lines, c})
+    table.insert(buffer_lines, "")
+    for _, c in ipairs(comments) do
+        local c_lines = render_comment(c)
+        for _, line in ipairs(c_lines) do
+            table.insert(buffer_lines, line)
         end
-
-        -- leave room for the user to reply.
-        table.insert(buffer_lines, "")
-        table.insert(buffer_lines, string.format("%s  %s", icon_set["Account"], "Add a comment below..."))
-
-        -- record the offset to our reply message, we'll allow editing here
-        state.text_area_off = #buffer_lines
-        table.insert(buffer_lines, "")
-    else
-        state.text_area_off = #buffer_lines
+        table.insert(marks_to_create, {#buffer_lines, c})
     end
+
+    -- leave room for the user to reply.
+    table.insert(buffer_lines, "")
+    table.insert(buffer_lines, string.format("%s  %s", icon_set["Account"], "Add a comment below..."))
+
+    -- record the offset to our reply message, we'll allow editing here
+    state.text_area_off = #buffer_lines
+    table.insert(buffer_lines, "")
 
     M.set_modifiable(true, buf)
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
@@ -319,20 +363,21 @@ function M.render_issue(number, preview)
     M.set_modifiable(false, buf)
 
     state.ns = vim.api.nvim_create_namespace("issue-" .. number)
-    if not preview then
-        for _, m in ipairs(marks_to_create) do
-            local id = vim.api.nvim_buf_set_extmark(
-                buf,
-                state.ns,
-                m[1],
-                0,
-                {}
-            )
-            state.marks_to_comments[id] = m[2]
-        end
-        state.buffer_end = #buffer_lines
-        M.state_by_buf[state.buf] = state
+    for _, m in ipairs(marks_to_create) do
+        local id = vim.api.nvim_buf_set_extmark(
+            buf,
+            state.ns,
+            m[1],
+            0,
+            {}
+        )
+        state.marks_to_comments[id] = m[2]
     end
+    state.buffer_end = #buffer_lines
+
+    M.state_by_buf[buf] = state
+
+    restore(state)
 
     return buf
 end
@@ -516,11 +561,74 @@ function M.submit()
        end
     end
 
-    M.on_refresh()
-
     M.set_modifiable(true)
     vim.api.nvim_buf_set_lines(state.buf, state.text_area_off, -1, false, {})
     M.set_modifiable(false)
+
+    M.on_refresh()
+end
+
+function M.reaction()
+    local comment = comment_under_cursor()
+    if comment == nil then
+        return
+    end
+    vim.ui.select(
+        reactions.reaction_names,
+        {
+            prompt = "Select a reaction: ",
+            format_item = function(item)
+                return reactions.reaction_map[item] .. " " .. item
+            end
+        },
+        function(item, idx)
+            -- get the reactions for this comment, search for our user name, if
+            -- the reaction exists, delete it, otherwise, create it.
+            local emoji_to_set = reactions.reaction_map[item]
+            ghcli.get_issue_comment_reactions_async(comment["id"], function (err, data)
+                if err then
+                     if err then
+                         lib_notify.notify_popup_with_timeout("Failed to get comment reactions.", 7500, "error")
+                         return
+                     end
+                end
+                local reaction_exists = false
+                for _, reaction in ipairs(data) do
+                    if reaction["user"]["login"] == ghcli.user["login"] then
+                        local emoji = reactions.reaction_lookup(reaction["content"])
+                        if emoji == emoji_to_set then
+                            reaction_exists = true
+                        end
+                    end
+                end
+                if reaction_exists then
+                     ghcli.remove_reaction_async(comment["node_id"], reactions.reaction_names[idx], vim.schedule_wrap(function(err, data)
+                         if err then
+                             lib_notify.notify_popup_with_timeout("Failed to add reaction.", 7500, "error")
+                             return
+                         end
+                         if data == nil then
+                             lib_notify.notify_popup_with_timeout("Failed to add reaction.", 7500, "error")
+                             return
+                         end
+                         M.on_refresh()
+                     end))
+                else
+                     ghcli.add_reaction(comment["node_id"], reactions.reaction_names[idx], vim.schedule_wrap(function(err, data)
+                         if err then
+                             lib_notify.notify_popup_with_timeout("Failed to add reaction.", 7500, "error")
+                             return
+                         end
+                         if data == nil then
+                             lib_notify.notify_popup_with_timeout("Failed to add reaction.", 7500, "error")
+                             return
+                         end
+                         M.on_refresh()
+                     end))
+                end
+            end)
+        end
+    )
 end
 
 function M.comment_actions()
@@ -552,6 +660,10 @@ function M.comment_actions()
             end
             if item == "delete" then
                 M.delete_comment()
+                return
+            end
+            if item == "react" then
+                M.reaction()
                 return
             end
         end

@@ -137,6 +137,11 @@ function M.list_all_repo_issues_async(on_read)
     async_request(args, on_read, true)
 end
 
+function M.get_user()
+    local args = {"gh", "api", "/user"}
+    return gh_exec(args)
+end
+
 function M.get_user_async(on_read)
     local args = {"api", "/user"}
     async_request(args, on_read)
@@ -304,6 +309,18 @@ function M.get_issue_comments_async(number, on_read)
         '-F',
         'per_page=100',
         '/repos/{owner}/{repo}/issues/' .. number .. '/comments'
+    }
+    async_request(args, on_read, true)
+end
+
+function M.get_issue_comment_reactions_async(id, on_read)
+    local args = {
+        'api',
+        '-X',
+        'GET',
+        '-F',
+        'per_page=100',
+        string.format('/repos/{owner}/{repo}/issues/comments/%s/reactions', id)
     }
     async_request(args, on_read, true)
 end
@@ -689,5 +706,12 @@ function M.get_git_protocol()
 
   return protocol:gsub("[\r\n]", "")
 end
+
+-- on module load, immediately cache our user.
+M.user = {}
+local function init()
+    M.user = M.get_user()
+end
+init()
 
 return M
