@@ -6,7 +6,7 @@ local config        = require('litee.gh.config').config
 local ghcli         = require('litee.gh.ghcli')
 local s             = require('litee.gh.pr.state')
 local reactions     = require('litee.gh.pr.reactions')
-local helpers       = require('litee.gh.helpers')
+local issues        = require('litee.gh.issues')
 
 local M = {}
 
@@ -124,7 +124,7 @@ local function setup_buffer()
     vim.api.nvim_buf_set_keymap(state.buf, 'n', config.keymaps.submit_comment, "", {callback=M.submit})
     vim.api.nvim_buf_set_keymap(state.buf, 'n', config.keymaps.actions, "", {callback=M.comment_actions})
     if not config.disable_keymaps then
-        vim.api.nvim_buf_set_keymap(state.buf, 'n', config.keymaps.goto_issue, "", {callback=helpers.open_issue_under_cursor})
+        vim.api.nvim_buf_set_keymap(state.buf, 'n', config.keymaps.goto_issue, "", {callback=issues.open_issue_under_cursor})
     end
 
     vim.api.nvim_create_autocmd({"CursorMoved", "CursorMovedI"}, {
@@ -141,7 +141,7 @@ local function setup_buffer()
     })
     vim.api.nvim_create_autocmd({"CursorHold"}, {
         buffer = state.buf,
-        callback = helpers.preview_issue_under_cursor,
+        callback = issues.preview_issue_under_cursor,
     })
 end
 

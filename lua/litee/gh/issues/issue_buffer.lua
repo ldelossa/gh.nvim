@@ -1,42 +1,11 @@
-local lib_notify    = require('litee.lib.notify')
 local lib_icons     = require('litee.lib.icons')
-local lib_util      = require('litee.lib.util')
+local lib_path      = require('litee.lib.util.path')
 
-local config        = require('litee.gh.config').config
 local ghcli         = require('litee.gh.ghcli')
-local reactions     = require('litee.gh.pr.reactions')
+local lib_notify    = require('litee.lib.notify')
+local config        = require('litee.gh.config').config
 
 local M = {}
-
-local state = {
-    -- the buffer id where the pr buffer is rendered
-    buf = nil,
-    -- the win id where the pr buffer is rendered
-    win = nil,
-    -- the last recorded end of the buffer
-    buffer_end = nil,
-    -- the offset to the "text" area where users can write text
-    text_area_off = nil,
-    -- a mapping of extmarks to the thread comments they represent.
-    marks_to_comments = {},
-    -- set when "edit_comment()" is issued, holds the comment thats being updated
-    -- until submit() is called or a new thread is rendered.
-    editing_comment = nil,
-    editing_issue = nil,
-    -- the issue object being rendered
-    issue = nil,
-    -- the comments associated with the issues
-    comments = nil
-}
-
-local function reset_state()
-    state.thread = nil
-    state.buffer_end = nil
-    state.text_area_off = nil
-    state.marks_to_comments = {}
-    state.editing_comment = nil
-    state.creating_comment = nil
-end
 
 local symbols = {
     top =    "╭",
@@ -45,26 +14,110 @@ local symbols = {
     tab = "  ",
 }
 
--- extract_text will extract text from the text area, join the lines, and shell
--- escape the content.
-local function extract_text()
-    -- extract text from text area
-    local lines = vim.api.nvim_buf_get_lines(state.buf, state.text_area_off, -1, false)
+M.state_by_number = {}
+M.state_by_buf = {}
 
-    -- join them into a single body
-    local body = vim.fn.join(lines, "\n")
-    body = vim.fn.shellescape(body)
-    return body, lines
+local callbacks = {}
+
+function M.set_callbacks(cbs)
+    callbacks = cbs
 end
 
-function M.on_refresh()
-    M.load_issue(state.issue["number"], vim.schedule_wrap(
-        M.render_issue
-    ))
+function M.on_refresh(state)
+    for issue, _ in pairs(M.state_by_number) do
+        M.load_issue(issue,
+           function() M.render_issue(issue) end
+        )
+    end
 end
 
--- namespace we'll use for extmarks that help us track comments.
-local ns = vim.api.nvim_create_namespace("pr_buffer")
+local function new_issue_state()
+    return {
+        -- the buffer id where the pr buffer is rendered
+        buf = nil,
+        -- the win id where the pr buffer is rendered
+        win = nil,
+        -- the last recorded end of the buffer
+        buffer_end = nil,
+        -- the offset to the "text" area where users can write text
+        text_area_off = nil,
+        -- a mapping of extmarks to the thread comments they represent.
+        marks_to_comments = {},
+        -- set when "edit_comment()" is issued, holds the comment thats being updated
+        -- until submit() is called or a new thread is rendered.
+        editing_comment = nil,
+        editing_issue = nil,
+        -- the issue object being rendered
+        issue = nil,
+        -- the comments associated with the issues
+        comments = nil,
+        -- namespace for extmarks
+        ns = nil
+    }
+end
+
+-- comment_under_cursor uses the mapped extmarks to extract the comment under
+-- the user's cursor.
+local function comment_under_cursor()
+    local state = M.state_by_buf[vim.api.nvim_get_current_buf()]
+    if state == nil then
+        return
+    end
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local marks  = vim.api.nvim_buf_get_extmarks(0, state.ns, {cursor[1]-1, 0}, {-1, 0}, {
+        limit = 1
+    })
+    if #marks == 0 then
+        return
+    end
+    local mark = marks[1][1]
+    local comment = state.marks_to_comments[mark]
+    return comment
+end
+
+-- load issue will asynchronously load the issue identified by its number with
+-- not hash sign and call on_load() once done.
+function M.load_issue(number, on_load, preview)
+    ghcli.get_issue_async(number, function(err, issue_data)
+        if err then
+            lib_notify.notify_popup_with_timeout("Failed to fetch issue.", 7500, "error")
+            return
+        end
+        if issue_data == nil then
+            lib_notify.notify_popup_with_timeout("Failed to fetch issue.", 7500, "error")
+            return
+        end
+
+        local state = nil
+        if M.state_by_number[number] ~= nil then
+            state = M.state_by_number[number]
+        else
+            state = new_issue_state()
+        end
+
+        -- we do not need to load comments if we are just creating a preview
+        if not preview then
+            ghcli.get_issue_comments_async(number, function(err, comments_data)
+                if err then
+                    lib_notify.notify_popup_with_timeout("Failed to fetch issue comments.", 7500, "error")
+                    return
+                end
+                if comments_data == nil then
+                    lib_notify.notify_popup_with_timeout("Failed to fetch issue.", 7500, "error")
+                    return
+                end
+                state.comments = comments_data
+                state.issue = issue_data
+                M.state_by_number[number] = state
+                on_load()
+            end)
+        else
+            state.issue = issue_data
+            M.state_by_number[number] = state
+            on_load()
+        end
+    end)
+end
 
 local function _win_settings_on()
     vim.api.nvim_win_set_option(0, "showbreak", "│")
@@ -77,59 +130,75 @@ local function _win_settings_off()
     vim.api.nvim_win_set_option(0, 'wrap', true)
 end
 
--- toggle_writable will toggle the thread_buffer as modifiable
-local function in_editable_area()
+local function in_editable_area(state)
     local cursor = vim.api.nvim_win_get_cursor(0)
     if state.text_area_off == nil then
         return
     end
     if cursor[1] >= state.text_area_off then
         _win_settings_off()
-        M.set_modifiable(true)
+        M.set_modifiable(true, state.buf)
     else
         _win_settings_on()
-        M.set_modifiable(false)
+        M.set_modifiable(false, state.buf)
     end
 end
 
-local function setup_buffer()
-    -- see if we can reuse a buffer that currently exists.
-    if state.buf ~= nil and vim.api.nvim_buf_is_valid(state.buf) then
-        return state.buf
+-- load_issue must be called before a buffer can be setup for the issue number.
+local function setup_buffer(number, preview)
+    if M.state_by_number[number] == nil then
+        return nil
+    end
+
+
+    local buf_name = ""
+    if preview then
+        buf_name = "issue #" .. number .. " preview"
     else
-        state.buf = vim.api.nvim_create_buf(false, false)
-        if state.buf == 0 then
-            vim.api.nvim_err_writeln("thread_convo: buffer create failed")
-            return
+        buf_name = "issue #" .. number
+    end
+
+    for _, b in ipairs(vim.api.nvim_list_bufs()) do
+        if lib_path.basename(vim.api.nvim_buf_get_name(b)) == buf_name then
+            print("deleting buffer " .. buf_name)
+            vim.api.nvim_buf_delete(b, {force=true})
         end
     end
 
-    -- set buf options
-    vim.api.nvim_buf_set_name(state.buf, "pull request issue")
-    vim.api.nvim_buf_set_option(state.buf, 'bufhidden', 'hide')
-    vim.api.nvim_buf_set_option(state.buf, 'filetype', 'pr')
-    vim.api.nvim_buf_set_option(state.buf, 'buftype', 'nofile')
-    vim.api.nvim_buf_set_option(state.buf, 'modifiable', false)
-    vim.api.nvim_buf_set_option(state.buf, 'swapfile', false)
-    vim.api.nvim_buf_set_option(state.buf, 'textwidth', 0)
-    vim.api.nvim_buf_set_option(state.buf, 'wrapmargin', 0)
-    vim.api.nvim_buf_set_option(state.buf, 'ofu', 'v:lua.GH_completion')
+    local buf = vim.api.nvim_create_buf(false, false)
+    vim.api.nvim_buf_set_name(buf, buf_name)
+    vim.api.nvim_buf_set_option(buf, 'bufhidden', 'hide')
+    vim.api.nvim_buf_set_option(buf, 'filetype', 'pr')
+    vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
+    vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+    vim.api.nvim_buf_set_option(buf, 'swapfile', false)
+    vim.api.nvim_buf_set_option(buf, 'textwidth', 0)
+    vim.api.nvim_buf_set_option(buf, 'wrapmargin', 0)
+    vim.api.nvim_buf_set_option(buf, 'ofu', 'v:lua.GH_completion')
 
-    vim.api.nvim_buf_set_keymap(state.buf, 'n', config.keymaps.submit_comment, "", {callback=M.submit})
-    vim.api.nvim_buf_set_keymap(state.buf, 'n', config.keymaps.actions, "", {callback=M.comment_actions})
+    vim.api.nvim_buf_set_keymap(buf, 'n', config.keymaps.submit_comment, "", {callback=M.submit})
+    vim.api.nvim_buf_set_keymap(buf, 'n', config.keymaps.actions, "", {callback=M.comment_actions})
+    if not config.disable_keymaps then
+        vim.api.nvim_buf_set_keymap(buf, 'n', config.keymaps.goto_issue, "", {callback=callbacks["goto_cb"]})
+    end
 
     vim.api.nvim_create_autocmd({"CursorMoved", "CursorMovedI"}, {
-        buffer = state.buf,
-        callback = in_editable_area,
+        buffer = buf,
+        callback = function () in_editable_area(M.state_by_number[number]) end,
     })
     vim.api.nvim_create_autocmd({"BufEnter"}, {
-        buffer = state.buf,
+        buffer = buf,
         callback = _win_settings_on,
     })
     vim.api.nvim_create_autocmd({"BufWinLeave"}, {
-        buffer = state.buf,
+        buffer = buf,
         callback = _win_settings_off,
     })
+    vim.api.nvim_create_autocmd({"CursorHold"}, {
+        buffer = buf,
+        callback = callbacks["preview_cb"]
+    })
+    return buf
 end
 
 local function parse_comment_body(body, left_sign)
@@ -171,96 +240,29 @@ local function render_comment(comment)
     return lines
 end
 
-local function find_win()
-    if state.buf ~= nil then
-        local wins = vim.api.nvim_list_wins()
-        for _, w in ipairs(wins) do
-            if state.buf == vim.api.nvim_win_get_buf(w) then
-                return w
-            end
-        end
-    end
-end
-
-function M.load_issue(number, on_load, preview)
-    ghcli.get_issue_async(number, function(err, data)
-        if err then
-            lib_notify.notify_popup_with_timeout("Failed to fetch issue.", 7500, "error")
-            return
-        end
-        if data == nil then
-            lib_notify.notify_popup_with_timeout("Failed to fetch issue.", 7500, "error")
-            return
-        end
-
-        state.issue = data
-        -- we do not need to load comments if we are just creating a preview
-        if not preview then
-            ghcli.get_issue_comments_async(number, function(err, data)
-                if err then
-                    lib_notify.notify_popup_with_timeout("Failed to fetch issue comments.", 7500, "error")
-                    return
-                end
-                if data == nil then
-                    lib_notify.notify_popup_with_timeout("Failed to fetch issue.", 7500, "error")
-                    return
-                end
-                state.comments = data
-                on_load()
-            end)
-        else
-            on_load()
-        end
-    end)
-end
-
-function M.render_issue(preview)
+-- render_issue will return a buffer of the issue and set the issue state's
+-- buffer field
+function M.render_issue(number, preview)
     local icon_set = "default"
     if config.icon_set ~= nil then
         icon_set = lib_icons[config.icon_set]
     end
-    if state.buf == nil or not vim.api.nvim_buf_is_valid(state.buf) then
-        setup_buffer()
+
+    local state = M.state_by_number[number]
+    if state == nil then
+        return
     end
 
-    local win = find_win()
-    local displayed = nil
-    if
-        win ~= nil
-    then
-            local _, text_area_lines = extract_text()
-            if text_area_lines ~= nil then
-                local has_content = false
-                for _, l in ipairs(text_area_lines) do
-                    if l ~= "" then
-                        has_content = true
-                    end
-                end
-                if not has_content then
-                    text_area_lines = nil
-                end
-            end
-            displayed = {
-                win = win,
-                -- cursor so we can restore position on new thread load
-                cursor = vim.api.nvim_win_get_cursor(win),
-                -- any in the text area so we can restore it incase the user
-                -- was writing a large message and a new message came into the
-                -- thread buffer.
-                text_area = text_area_lines
-            }
+    local buf = nil
+    if preview then
+        buf = setup_buffer(number, preview)
+    else
+        state.buf = setup_buffer(number)
+        buf = state.buf
     end
 
-    reset_state()
-
-    -- get latest thread from s.pull_state
     local comments = state.comments
-
     local buffer_lines = {}
-
-    -- truncate current buffer
-    M.set_modifiable(true)
-    vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, {})
 
     -- bookkeep the extmarks we need to create
     local marks_to_create = {}
@@ -304,6 +306,7 @@ function M.render_issue(preview)
         -- leave room for the user to reply.
         table.insert(buffer_lines, "")
         table.insert(buffer_lines, string.format("%s  %s", icon_set["Account"], "Add a comment below..."))
+
         -- record the offset to our reply message, we'll allow editing here
         state.text_area_off = #buffer_lines
         table.insert(buffer_lines, "")
@@ -311,59 +314,77 @@ function M.render_issue(preview)
         state.text_area_off = #buffer_lines
     end
 
-    -- write all our rendered comments to the buffer.
-    vim.api.nvim_buf_set_lines(state.buf, 0, #buffer_lines, false, buffer_lines)
+    M.set_modifiable(true, buf)
+    print(vim.inspect("setting lines for buf " .. buf))
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
+    vim.api.nvim_buf_set_lines(buf, 0, #buffer_lines, false, buffer_lines)
+    M.set_modifiable(false, buf)
 
-    -- write all our marks
-    for _, m in ipairs(marks_to_create) do
-        local id = vim.api.nvim_buf_set_extmark(
-            state.buf,
-            ns,
-            m[1],
-            0,
-            {}
-        )
-        state.marks_to_comments[id] = m[2]
-    end
-
-    -- set some additional book keeping state.
-    state.buffer_end = #buffer_lines
-
-    if displayed ~= nil then
-        -- do we have text to restore, if so write it to text area and set cursor
-        -- at end.
-        if
-            displayed.text_area ~= nil
-        then
-            local new_buf_end = #buffer_lines+#displayed.text_area
-            vim.api.nvim_buf_set_lines(state.buf, state.text_area_off, new_buf_end, false, displayed.text_area)
-            state.buffer_end = new_buf_end
-            lib_util.safe_cursor_reset(displayed.win, {new_buf_end, vim.o.columns})
-            goto done
+    state.ns = vim.api.nvim_create_namespace("issue-" .. number)
+    if not preview then
+        for _, m in ipairs(marks_to_create) do
+            local id = vim.api.nvim_buf_set_extmark(
+                buf,
+                state.ns,
+                m[1],
+                0,
+                {}
+            )
+            state.marks_to_comments[id] = m[2]
         end
-        -- we have no text to disply, reset cursor to original position if safe
-        lib_util.safe_cursor_reset(displayed.win, displayed.cursor)
+        state.buffer_end = #buffer_lines
+        M.state_by_buf[state.buf] = state
     end
 
-    ::done::
-    M.set_modifiable(false)
-
-    return state.buf
+    return buf
 end
 
--- comment_under_cursor uses the mapped extmarks to extract the comment under
--- the user's cursor.
-local function comment_under_cursor()
-    local cursor = vim.api.nvim_win_get_cursor(0)
-    local marks  = vim.api.nvim_buf_get_extmarks(0, ns, {cursor[1]-1, 0}, {-1, 0}, {
-        limit = 1
-    })
-    if #marks == 0 then
-        return
+local function extract_text(state)
+    -- extract text from text area
+    local lines = vim.api.nvim_buf_get_lines(state.buf, state.text_area_off, -1, false)
+    -- join them into a single body
+    local body = vim.fn.join(lines, "\n")
+    body = vim.fn.shellescape(body)
+    return body, lines
+end
+
+local function create(state, body)
+    local out = ghcli.create_pull_issue_comment(state.issue["number"], body)
+    if out == nil then
+        return nil
     end
-    local mark = marks[1][1]
-    local comment = state.marks_to_comments[mark]
-    return comment
+    return out
+end
+
+-- update will update the text of the comment present in state.editing_comment
+-- and then reset that field to nil.
+local function update(state, body)
+    local out = ghcli.update_pull_issue_comment(state.editing_comment["id"], body)
+    if out == nil then
+        return nil
+    end
+    return out
+end
+
+local function update_iss_body(state, body)
+    local out = ghcli.update_issue_body_async(state.issue["number"], body, function(err, _)
+        if err then
+            vim.schedule(function() lib_notify.notify_popup_with_timeout("Failed to update issue body: " .. err, 7500, "error") end)
+            return
+        end
+
+        -- dump the current text before we refresh, or else itll be restored.
+        vim.schedule(function ()
+            M.set_modifiable(true)
+            vim.api.nvim_buf_set_lines(state.buf, state.text_area_off, -1, false, {})
+            M.set_modifiable(false)
+        end)
+
+        M.on_refresh()
+
+        state.editing_issue = nil
+    end)
+    return out
 end
 
 function M.edit_iss_body(iss)
@@ -371,6 +392,12 @@ function M.edit_iss_body(iss)
     if config.icon_set ~= nil then
         icon_set = lib_icons[config.icon_set]
     end
+
+    local state = M.state_by_buf[vim.api.nvim_get_current_buf()]
+    if state == nil then
+        return
+    end
+
     if iss["author_association"] ~=  "OWNER" then
         lib_notify.notify_popup_with_timeout("Cannot edit an issue you did not author.", 7500, "error")
         return
@@ -397,13 +424,17 @@ function M.edit_iss_body(iss)
     M.set_modifiable(false)
 end
 
--- find the comment at the cursor, replace the "Reply" message with an "Edit"
--- message and
 function M.edit_comment()
     local icon_set = "default"
     if config.icon_set ~= nil then
         icon_set = lib_icons[config.icon_set]
     end
+
+    local state = M.state_by_buf[vim.api.nvim_get_current_buf()]
+    if state == nil then
+        return
+    end
+
     local comment = comment_under_cursor()
     if comment == nil then
         return
@@ -421,10 +452,10 @@ function M.edit_comment()
         table.insert(lines, line)
     end
 
-    M.set_modifiable(true)
-
     -- replace buffer lines from reply section down
+    M.set_modifiable(true, state.buf)
     vim.api.nvim_buf_set_lines(state.buf, state.text_area_off-1, -1, false, lines)
+    M.set_modifiable(false, state.buf)
 
     -- setting this to not nil will have submit() perform an "update" instead of
     -- a "reply".
@@ -432,54 +463,6 @@ function M.edit_comment()
 
     vim.api.nvim_win_set_cursor(0, {state.text_area_off+#lines-1, 0})
 
-    M.set_modifiable(false)
-end
-
-
-function M.set_modifiable(bool)
-    if state.buf ~= nil and vim.api.nvim_buf_is_valid(state.buf) then
-        vim.api.nvim_buf_set_option(state.buf, 'modifiable', bool)
-    end
-end
-
--- update will update the text of the comment present in state.editing_comment
--- and then reset that field to nil.
-local function update(body)
-    local out = ghcli.update_pull_issue_comment(state.editing_comment["id"], body)
-    if out == nil then
-        return nil
-    end
-    return out
-end
-
-local function update_iss_body(body)
-    local out = ghcli.update_issue_body_async(state.issue["number"], body, function(err, _)
-        if err then
-            vim.schedule(function() lib_notify.notify_popup_with_timeout("Failed to update issue body: " .. err, 7500, "error") end)
-            return
-        end
-
-        -- dump the current text before we refresh, or else itll be restored.
-        vim.schedule(function ()
-            M.set_modifiable(true)
-            vim.api.nvim_buf_set_lines(state.buf, state.text_area_off, -1, false, {})
-            M.set_modifiable(false)
-        end)
-
-        -- TODO rerender
-        M.on_refresh()
-
-        state.editing_issue = nil
-    end)
-    return out
-end
-
-local function create(body)
-    local out = ghcli.create_pull_issue_comment(state.issue["number"], body)
-    if out == nil then
-        return nil
-    end
-    return out
 end
 
 function M.delete_comment()
@@ -497,51 +480,44 @@ function M.delete_comment()
             then
                 return
             end
-
             local out = ghcli.delete_pull_issue_comment(comment["id"])
             if out == nil then
                 lib_notify.notify_popup_with_timeout("Failed to delete comment.", 7500, "error")
                 return
             end
-
-            -- re-render thread buffer
             M.on_refresh()
         end
     )
 end
 
--- submit submits the latest changes in the thread buffer to the Github API.
 function M.submit()
-    -- do not allow a submit unless we are literally in the thread_buffer.
-    if vim.api.nvim_get_current_buf() ~= state.buf then
+    local state = M.state_by_buf[vim.api.nvim_get_current_buf()]
+    if state == nil then
         return
     end
 
-    local body = extract_text()
+    local body = extract_text(state)
     if vim.fn.strlen(body) == 0 then
         return
     end
 
     if state.editing_comment ~= nil then
-       local out = update(body)
+       local out = update(state, body)
        if out == nil then
           lib_notify.notify_popup_with_timeout("Failed to update issue comment.", 7500, "error")
        end
        state.editing_comment = nil
     elseif state.editing_issue ~= nil then
-       -- TODO
-       -- update_pr_body is async, so any follow up work is done in a callback.
        local out = update_iss_body(body)
        return
     else
-       local out = create(body)
+       local out = create(state, body)
        if out == nil then
           lib_notify.notify_popup_with_timeout("Failed to create issue comment.", 7500, "error")
           return
        end
     end
 
-    -- refresh
     M.on_refresh()
 
     M.set_modifiable(true)
@@ -550,10 +526,16 @@ function M.submit()
 end
 
 function M.comment_actions()
-    comment = comment_under_cursor()
+    local state = M.state_by_buf[vim.api.nvim_get_current_buf()]
+    if state == nil then
+        return
+    end
+
+    local comment = comment_under_cursor()
     if comment == nil then
         return
     end
+
     vim.ui.select(
         {"edit", "delete", "react"},
         {prompt="Pick a action to perform on this comment: "},
@@ -574,12 +556,14 @@ function M.comment_actions()
                 M.delete_comment()
                 return
             end
-            if item == "react" then
-                M.reaction()
-                return
-            end
         end
     )
+end
+
+function M.set_modifiable(bool, buf)
+    if buf ~= nil and vim.api.nvim_buf_is_valid(buf) then
+        vim.api.nvim_buf_set_option(buf, 'modifiable', bool)
+    end
 end
 
 return M

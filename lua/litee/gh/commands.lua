@@ -2,7 +2,7 @@ local pr = require('litee.gh.pr')
 local issues = require('litee.gh.issues')
 local dv = require('litee.gh.pr.diff_view')
 local pr_handlers = require('litee.gh.pr.handlers')
-local helpers = require('litee.gh.helpers')
+local issues = require('litee.gh.issues')
 
 local M = {}
 
@@ -54,7 +54,7 @@ function M.setup()
     -- close the Review panel
     vim.api.nvim_create_user_command("GHCloseReview", function () pr.close_pr_review(nil) end, {})
     -- preview the issue or pull request number under the cursor
-    vim.api.nvim_create_user_command("GHPreviewIssue", helpers.preview_issue_under_cursor, {})
+    vim.api.nvim_create_user_command("GHPreviewIssue", issues.preview_issue_under_cursor, {})
     -- Add a label to the currently opened pull request.
     vim.api.nvim_create_user_command("GHAddLabel", pr.add_label, {})
     -- If possible, open the node under the cursor in your web browser.
