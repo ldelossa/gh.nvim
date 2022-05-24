@@ -25,6 +25,8 @@ local state = {
     -- set when "edit_comment()" is issued, holds the comment thats being updated
     -- until submit() is called or a new thread is rendered.
     editing_comment = nil,
+    -- set when "create_comment()" is issue, holds the details needed to submit
+    -- a new thread to the GH API when submit() is called.
     creating_comment = nil
 }
 
@@ -50,6 +52,8 @@ local symbols = {
     author =  icon_set["Account"]
 }
 
+-- parse out the line range and whether its a multiline comment associated
+-- with the provided thread.
 local function extract_thread_lines(thread)
     local start_line = nil
     local end_line = nil
@@ -78,9 +82,9 @@ local function extract_thread_lines(thread)
     return nil
 end
 
+-- extract rest_id from comment, you can get this from the last portion
+-- of url.
 local function comment_rest_id(comment)
-    -- extract rest_id from comment, you can get this from the last portion
-    -- of url.
     local rest_id = ""
     local sep = "_r"
     for i in string.gmatch(comment["comment"]["url"], "([^"..sep.."]+)") do
@@ -95,9 +99,7 @@ local function extract_text()
     if state.text_area_off == nil then
         return
     end
-    -- extract text from text area
     local lines = vim.api.nvim_buf_get_lines(state.buf, state.text_area_off, -1, false)
-    -- join them into a single body
     local body = vim.fn.join(lines, "\n")
     body = vim.fn.shellescape(body)
     return body, lines
@@ -117,7 +119,8 @@ local function _win_settings_off()
     vim.api.nvim_win_set_option(0, 'wrap', true)
 end
 
--- toggle_writable will toggle the thread_buffer as modifiable
+-- in_editable_area is used as an auto command to flip the thread_buffer writable
+-- when thec cursor is in the designated text area.
 local function in_editable_area()
     local cursor = vim.api.nvim_win_get_cursor(0)
     if state.text_area_off == nil then
@@ -213,7 +216,7 @@ local function count_reactions(comment)
 end
 
 -- render comment will render a comment object into buffer lines.
-local function render_comment(comment, thread_stale)
+local function render_comment(comment, outdated)
     if config.icon_set ~= nil then
         icon_set = lib_icons[config.icon_set]
     end
@@ -227,7 +230,7 @@ local function render_comment(comment, thread_stale)
 
     local author = comment.comment["author"]["login"]
     local title = string.format("%s %s  %s", symbols.top, icon_set["Account"], author)
-    if thread_stale then
+    if outdated then
         title = title .. " [outdated]"
     elseif comment.comment["state"] == "PENDING" then
         title = title .. " [pending]"
@@ -247,6 +250,10 @@ local function render_comment(comment, thread_stale)
     return lines
 end
 
+-- create_thread places the thread buffer into "creating_comment" state and 
+-- renders a user input area. 
+--
+-- when submit() is subsequently called thread will be created.
 function M.create_thread(details)
     if config.icon_set ~= nil then
         icon_set = lib_icons[config.icon_set]
@@ -276,6 +283,11 @@ function M.create_thread(details)
     return state.buf
 end
 
+-- restore_comment_create will restore the "comment_creating" state and any text
+-- which may have been in the buffer.
+--
+-- useful when refreshes occurs but the user was not finished writing a new thread
+-- message.
 function M.restore_comment_create(displayed)
     M.create_thread(state.creating_comment)
     local new_buf_end = #displayed.text_area
@@ -286,6 +298,97 @@ function M.restore_comment_create(displayed)
     lib_util.safe_cursor_reset(displayed.win, {new_buf_end, vim.o.columns})
 end
 
+-- restore_thread takes a requested thread_id which diffview is requested to be
+-- rendered, and a displayed thread which diffview last displayed.
+--
+-- if they reference the same thread, a restore function is returned which will
+-- restore any old text into the newly rendered buffer.
+--
+-- the returned function expects the global state to be passed to it and will 
+-- update the state's buffers accordingly.
+function restore_thread(thread_id, displayed_thread)
+    if 
+        displayed_thread == nil or
+        displayed_thread.buffer ~= state.buf or
+        displayed_thread.thread_id ~= thread_id or
+        not vim.api.nvim_win_is_valid(displayed_thread.win)
+    then
+        -- return a no-op
+        return function(_) end
+    end
+
+    local cursor = vim.api.nvim_win_get_cursor(displayed_thread.win)
+    
+    local has_content
+    local _, text_area_lines = extract_text()
+    if text_area_lines == nil then
+        return function(_) lib_util.safe_cursor_reset(displayed_thread.win, cursor) end
+    end
+
+    for _, line in ipairs(text_area_lines) do
+        if line ~= "" then
+            has_content = true
+        end
+    end
+    if not has_content then
+        return function(_) lib_util.safe_cursor_reset(displayed_thread.win, cursor) end
+    end
+
+    return function(state) 
+        local new_buf_end = state.buffer_end + #text_area_lines
+        vim.api.nvim_buf_set_lines(state.buf, state.text_area_off, new_buf_end, false, text_area_lines)
+        state.buffer_end = new_buf_end
+        lib_util.safe_cursor_reset(displayed_thread.win, {new_buf_end, vim.o.columns})
+    end
+end
+
+-- write_preview grabs the buffer lines the thread refers to and writes a preview
+-- of these threads into buffer_lines.
+function write_preview(thread, buffer_lines)
+    local thread_source_lines = extract_thread_lines(thread)
+    -- grab source code buffer for preview
+    local buf = nil
+    for _, b in ipairs(vim.api.nvim_list_bufs()) do
+        local path = string.format("%s/%s", vim.fn.getcwd(), thread.thread["path"])
+        if vim.api.nvim_buf_get_name(b) == path then
+            buf = b
+        end
+    end
+    if
+        buf ~= nil
+        and thread_source_lines ~= nil
+    then
+        local start_line = thread_source_lines[1]
+        local end_line = thread_source_lines[2]
+        local multiline = thread_source_lines[3]
+        -- if not a multiline comment, and if we have space, give some context
+        if
+            (start_line - 3) >= 1 and
+            not multiline
+        then
+            start_line = start_line - 3
+        end
+        table.insert(buffer_lines, symbols.left)
+        local lines = vim.api.nvim_buf_get_lines(buf, start_line, end_line, true)
+        for i, preview_line in ipairs(lines) do
+            table.insert(buffer_lines, string.format("%s %s %s %s", symbols.left, (start_line + i), "▏", preview_line))
+        end
+    end
+end
+
+-- render_thread is the entrypoint function for displaying a thread buffer.
+-- 
+-- thread_id is the requested thread to display and this thread should be loaded
+-- into s.pull_state before being requested.
+--
+-- n_of is the number of the thread on the thread's line, there can be multiple
+-- threads on a single line, and this differentiates them.
+--
+-- displayed_thread is provided by diffview and indicates the previously displayed
+-- thread, if it matches thread_id then render_thread will attempt to restore any
+-- previously writen text.
+--
+-- this method is intended to work as a 'refresh' method as well.
 function M.render_thread(thread_id, n_of, displayed_thread)
     if config.icon_set ~= nil then
         icon_set = lib_icons[config.icon_set]
@@ -294,59 +397,15 @@ function M.render_thread(thread_id, n_of, displayed_thread)
         setup_buffer()
     end
 
-    -- if we are being called with a displayed thread, ensure its the one we
-    -- think it is, and grab some state to restore later.
-    local displayed = nil
-    if
-        displayed_thread ~= nil and
-        displayed_thread.buffer == state.buf and
-        displayed_thread.thread_id == thread_id
-        and vim.api.nvim_buf_is_valid(state.buf)
-    then
-        local _, text_area_lines = extract_text()
-        if text_area_lines ~= nil then
-            local has_content = false
-            for _, l in ipairs(text_area_lines) do
-                if l ~= "" then
-                    has_content = true
-                end
-            end
-            if not has_content then
-                text_area_lines = nil
-            end
-        end
+    local restore = restore_thread(thread_id, displayed_thread)
 
-        local cursor = nil
-        if
-            displayed ~= nil and
-            displayed.win ~= nil and
-            vim.api.nvim_win_is_valid(displayed.win)
-        then
-            cursor = vim.api.nvim_win_get_cursor(displayed_thread.win)
-        end
-
-        displayed = {
-            win = displayed_thread.win,
-            -- cursor so we can restore position on new thread load
-            cursor = cursor,
-            -- any in the text area so we can restore it incase the user
-            -- was writing a large message and a new message came into the
-            -- thread buffer.
-            text_area = text_area_lines
-        }
-    end
-
-    -- if details exists, this means we were creating a new thread, we need
-    -- to restore this.
+    -- special case, if we are in "creating_comment" state, restore this incase
+    -- this is a refresh and the user was writing a message.
     if
         state.creating_comment ~= nil
-        and displayed ~= nil
+        and displayed_thread ~= nil
     then
-        M.restore_comment_create(displayed)
-        return state.buf
-    end
-
-    if thread_id == "creating" then
+        restore(state)
         return state.buf
     end
 
@@ -357,12 +416,12 @@ function M.render_thread(thread_id, n_of, displayed_thread)
 
     local buffer_lines = {}
 
+    -- requested thread to render doesn't exist, it could have been deleted.
     if thread == nil then
         M.set_modifiable(true)
         table.insert(buffer_lines, "Thread does not exist.")
         vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, buffer_lines)
         M.set_modifiable(false)
-        reset_state()
         return state.buf
     end
 
@@ -383,15 +442,6 @@ function M.render_thread(thread_id, n_of, displayed_thread)
         line = thread.thread["line"]
     end
 
-    -- grab source code buffer for preview
-    local buf = nil
-    for _, b in ipairs(vim.api.nvim_list_bufs()) do
-        local path = string.format("%s/%s", vim.fn.getcwd(), thread.thread["path"])
-        if vim.api.nvim_buf_get_name(b) == path then
-            buf = b
-        end
-    end
-
     -- render thread header
     table.insert(buffer_lines, string.format("%s %s  Thread [%d/%d]", symbols.top, icon_set["MultiComment"], n_of[1], n_of[2]))
     table.insert(buffer_lines, string.format("%s %s  Author: %s", symbols.left, icon_set["Account"], root_comment.comment["author"]["login"]))
@@ -400,50 +450,20 @@ function M.render_thread(thread_id, n_of, displayed_thread)
     table.insert(buffer_lines, string.format("%s %s  Outdated: %s", symbols.left, icon_set["History"], thread.thread["isOutdated"]))
     table.insert(buffer_lines, string.format("%s %s  Created: %s", symbols.left, icon_set["Calendar"], root_comment.comment["createdAt"]))
     table.insert(buffer_lines, string.format("%s %s  Last Updated: %s", symbols.left, icon_set["Calendar"], root_comment.comment["updatedAt"]))
-
     -- preview in header
-    local thread_source_lines = extract_thread_lines(thread)
-
-    if
-        buf ~= nil
-        and thread_source_lines ~= nil
-    then
-        local start_line = thread_source_lines[1]
-        local end_line = thread_source_lines[2]
-        local multiline = thread_source_lines[3]
-
-        -- if not a multiline comment, and if we have space, give some context
-        if
-            (start_line - 3) >= 1 and
-            not multiline
-        then
-            start_line = start_line - 3
-        end
-
-        table.insert(buffer_lines, symbols.left)
-        local lines = vim.api.nvim_buf_get_lines(buf, start_line, end_line, true)
-        for i, preview_line in ipairs(lines) do
-            table.insert(buffer_lines, string.format("%s %s %s %s", symbols.left, (start_line + i), "▏", preview_line))
-        end
-    end
-
+    write_preview(thread, buffer_lines)
     table.insert(buffer_lines, symbols.left)
     table.insert(buffer_lines, string.format("%s (submit: %s)(comment actions: %s)(un/resolve: %s)", symbols.bottom, config.keymaps.submit_comment, config.keymaps.actions, config.keymaps.resolve_thread))
     table.insert(buffer_lines, "")
 
     -- render root comment
-    local stale = false
-    if thread.thread["isOutdated"] then
-        stale = true
-    end
-    local root_comment_lines = render_comment(root_comment, stale)
+    local root_comment_lines = render_comment(root_comment, thread.thread["isOutdated"])
     for _, l in ipairs(root_comment_lines) do
         table.insert(buffer_lines, l)
     end
     -- mark end of root comment
     table.insert(marks_to_create, {#buffer_lines, root_comment})
 
-    -- local reply_comments = root_comment["children"]
     for i, reply in ipairs(thread.children) do
         if i == 1 then
            goto continue
@@ -456,16 +476,18 @@ function M.render_thread(thread_id, n_of, displayed_thread)
         ::continue::
     end
 
-    -- leave room for the user to reply.
+    -- user text area
     table.insert(buffer_lines, "")
     table.insert(buffer_lines, string.format("%s  %s", icon_set["Account"], "Add a reply below..."))
+
     -- record the offset to our reply message, we'll allow editing here
     state.text_area_off = #buffer_lines
     table.insert(buffer_lines, "")
 
-    -- write all our rendered comments to the buffer.
+    -- write all buffer lines to the buffer
     vim.api.nvim_buf_set_lines(state.buf, 0, #buffer_lines, false, buffer_lines)
-    -- write all our marks
+
+    -- write out all our marks.
     for _, m in ipairs(marks_to_create) do
         local id = vim.api.nvim_buf_set_extmark(
             state.buf,
@@ -481,28 +503,10 @@ function M.render_thread(thread_id, n_of, displayed_thread)
     state.buffer_end = #buffer_lines
     state.thread = thread
 
-    if displayed ~= nil then
-        -- do we have text to restore, if so write it to text area and set cursor
-        -- at end.
-        if
-            displayed.text_area ~= nil
-        then
-            local new_buf_end = #buffer_lines+#displayed.text_area
-            vim.api.nvim_buf_set_lines(state.buf, state.text_area_off, new_buf_end, false, displayed.text_area)
-            state.buffer_end = new_buf_end
-            lib_util.safe_cursor_reset(displayed.win, {new_buf_end, vim.o.columns})
-            goto done
-        end
-        -- we have no text to disply, reset cursor to original position if safe
-        if
-            displayed.win ~= nil and
-            vim.api.nvim_win_is_valid(displayed.win)
-        then
-            lib_util.safe_cursor_reset(displayed.win, displayed.cursor)
-        end
-    end
+    -- if the requested thread_id to render was also the currently displayed 
+    -- thread, restore the cursor and possible draft text which was left.
+    restore(state)
 
-    ::done::
     M.set_modifiable(false)
 
     return state.buf
@@ -510,7 +514,7 @@ end
 
 -- comment_under_cursor uses the mapped extmarks to extract the comment under
 -- the user's cursor.
-function comment_under_cursor()
+local function comment_under_cursor()
     local cursor = vim.api.nvim_win_get_cursor(0)
     local marks  = vim.api.nvim_buf_get_extmarks(0, ns, {cursor[1]-1, 0}, {-1, 0}, {
         limit = 1
@@ -523,8 +527,9 @@ function comment_under_cursor()
     return comment
 end
 
--- find the comment at the cursor, replace the "Reply" message with an "Edit"
--- message and
+-- edit the comment under the cursor. 
+-- places the thread_buffer in "editing_comment" state and will submit the changes
+-- on submit()
 function M.edit_comment()
     if config.icon_set ~= nil then
         icon_set = lib_icons[config.icon_set]
@@ -560,6 +565,7 @@ function M.edit_comment()
     M.set_modifiable(false)
 end
 
+-- deletes a comment under the cursor
 function M.delete_comment()
     local comment = comment_under_cursor()
     if comment == nil then
@@ -589,6 +595,7 @@ function M.delete_comment()
     )
 end
 
+-- will toggle the current thread between resolved/unresolved
 function M.resolve_thread_toggle()
     if state.thread.thread["isResolved"] then
         local out = ghcli.unresolve_thread(state.thread.thread["id"])
@@ -613,8 +620,7 @@ function M.set_modifiable(bool)
     end
 end
 
--- reply will creates a new reply comment to the root comment in a threaded
--- conversation
+-- reply handles submitting a reply comment via the github api
 local function reply(body)
     -- if we are not in a review perform a regular reply, if we are
     -- perform a reply associated with the review.
@@ -642,8 +648,7 @@ local function reply(body)
     end
 end
 
--- update will update the text of the comment present in state.editing_comment
--- and then reset that field to nil.
+-- update handles submitting an update to a comment via the github api
 local function update(body)
     local rest_id = comment_rest_id(state.editing_comment)
     local out = ghcli.update_comment(rest_id, body)
@@ -653,6 +658,8 @@ local function update(body)
     return out
 end
 
+-- create handles submitting a new threaded comment on a given diff line via
+-- the github api.
 local function create(body, details)
     -- create non-review related comment
     if s.pull_state.review == nil then
@@ -720,6 +727,8 @@ local function create(body, details)
     vim.api.nvim_win_set_buf(0, details.original_buf)
 end
 
+-- reactions handles submitting an addition or removal of a user reaction for
+-- a given comment under the cursor.
 function M.reaction()
     local comment = comment_under_cursor()
     if comment == nil then
@@ -768,7 +777,8 @@ function M.reaction()
     )
 end
 
--- submit submits the latest changes in the thread buffer to the Github API.
+-- submit() determines the current state of the thread_buffer and performs the
+-- necessary GH API calls.
 function M.submit()
     -- do not allow a submit unless we are literally in the thread_buffer.
     if vim.api.nvim_get_current_buf() ~= state.buf then
@@ -806,6 +816,7 @@ function M.submit()
     vim.cmd("GHRefreshComments")
 end
 
+-- comment_actions displays a list of actions for a given comment.
 function M.comment_actions()
     comment = comment_under_cursor()
     if comment == nil then

@@ -508,7 +508,7 @@ function M.next_thread()
     end
     local thread = threads[cur_thread_idx]
 
-    local buf = thread_buffer.render_thread(thread.thread["id"], {cur_thread_idx, #threads})
+    thread_buffer.render_thread(thread.thread["id"], {cur_thread_idx, #threads})
     state.displayed_thread["index"] = cur_thread_idx
     state.displayed_thread["thread_id"] = thread.thread["id"]
 end
@@ -710,7 +710,7 @@ function M.create_comment(args)
     -- put user's cursor in create buffer
     vim.api.nvim_set_current_win(win)
 
-    -- set displayed_thread with details on the currently displayed threads
+    -- display a nil thread to keep "creating comment" window alive over refreshes.
     state.displayed_thread = {
         side = side,
         linenr = line,
