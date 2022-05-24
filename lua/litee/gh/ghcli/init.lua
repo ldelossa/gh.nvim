@@ -681,7 +681,7 @@ function M.get_check_runs_by_suite(suite_id, on_read)
 end
 
 function M.get_git_protocol()
-	local cmd = [[gh config get git_protocol]]
+  local cmd = [[gh config get git_protocol]]
   local protocol, e = gh_exec(cmd, true);
   if protocol == nil then
     return nil, e
