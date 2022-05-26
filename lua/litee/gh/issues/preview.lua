@@ -1,8 +1,7 @@
 local lib_notify    = require('litee.lib.notify')
-local lib_icons     = require('litee.lib.icons')
 
-local config        = require('litee.gh.config').config
 local ghcli         = require('litee.gh.ghcli')
+local config        = require('litee.gh.config')
 
 local M = {}
 
@@ -73,12 +72,6 @@ local function parse_comment_body(body, left_sign)
 end
 
 function M.render_issue(issue)
-    local icon_set = "default"
-    if config.icon_set ~= nil then
-        icon_set = lib_icons[config.icon_set]
-    end
-
-
     local buf = vim.api.nvim_create_buf(true, true)
 
     local buffer_lines = {}
@@ -89,11 +82,11 @@ function M.render_issue(issue)
     else
         type = "Issue"
     end
-    table.insert(buffer_lines, string.format("%s %s  %s %s%s", symbols.top, icon_set["GitIssue"], type, icon_set["Number"], issue["number"]))
-    table.insert(buffer_lines, string.format("%s %s  Author: %s", symbols.left, icon_set["Account"], issue["user"]["login"]))
-    table.insert(buffer_lines, string.format("%s %s  Created: %s", symbols.left, icon_set["Calendar"], issue["created_at"]))
-    table.insert(buffer_lines, string.format("%s %s  Last Updated: %s", symbols.left, icon_set["Calendar"], issue["updated_at"]))
-    table.insert(buffer_lines, string.format("%s %s  Title: %s", symbols.left, icon_set["Pencil"], issue["title"]))
+    table.insert(buffer_lines, string.format("%s %s  %s %s%s", symbols.top, config.icon_set["GitIssue"], type, config.icon_set["Number"], issue["number"]))
+    table.insert(buffer_lines, string.format("%s %s  Author: %s", symbols.left, config.icon_set["Account"], issue["user"]["login"]))
+    table.insert(buffer_lines, string.format("%s %s  Created: %s", symbols.left, config.icon_set["Calendar"], issue["created_at"]))
+    table.insert(buffer_lines, string.format("%s %s  Last Updated: %s", symbols.left, config.icon_set["Calendar"], issue["updated_at"]))
+    table.insert(buffer_lines, string.format("%s %s  Title: %s", symbols.left, config.icon_set["Pencil"], issue["title"]))
     table.insert(buffer_lines, symbols.left)
     local body_lines = parse_comment_body(issue["body"], true)
     for _, l in ipairs(body_lines) do

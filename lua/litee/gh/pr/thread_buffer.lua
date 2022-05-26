@@ -1,13 +1,12 @@
 local lib_notify    = require('litee.lib.notify')
-local lib_icons     = require('litee.lib.icons')
 local lib_util      = require('litee.lib.util')
 
-local config        = require('litee.gh.config').config
 local ghcli         = require('litee.gh.ghcli')
 local s             = require('litee.gh.pr.state')
 local reactions     = require('litee.gh.pr.reactions')
 local reactions_map = require('litee.gh.pr.reactions').reaction_map
 local issues       = require('litee.gh.issues')
+local config       = require('litee.gh.config')
 
 local M = {}
 
@@ -39,17 +38,11 @@ local function reset_state()
     state.creating_comment = nil
 end
 
-local icon_set = {}
-if config.icon_set ~= nil then
-    icon_set = lib_icons[config.icon_set]
-end
-
 local symbols = {
     top =    "╭",
     left =   "│",
     bottom = "╰",
     tab = "  ",
-    author =  icon_set["Account"]
 }
 
 -- parse out the line range and whether its a multiline comment associated
@@ -156,11 +149,11 @@ local function setup_buffer()
     vim.api.nvim_buf_set_option(state.buf, 'wrapmargin', 0)
     vim.api.nvim_buf_set_option(state.buf, 'ofu', 'v:lua.GH_completion')
 
-    vim.api.nvim_buf_set_keymap(state.buf, 'n', config.keymaps.submit_comment, "", {callback=M.submit})
-    vim.api.nvim_buf_set_keymap(state.buf, 'n', config.keymaps.resolve_thread, "", {callback=M.resolve_thread_toggle})
-    vim.api.nvim_buf_set_keymap(state.buf, 'n', config.keymaps.actions, "", {callback=M.comment_actions})
-    if not config.disable_keymaps then
-        vim.api.nvim_buf_set_keymap(state.buf, 'n', config.keymaps.goto_issue, "", {callback=issues.open_issue_under_cursor})
+    vim.api.nvim_buf_set_keymap(state.buf, 'n', config.config.keymaps.submit_comment, "", {callback=M.submit})
+    vim.api.nvim_buf_set_keymap(state.buf, 'n', config.config.keymaps.resolve_thread, "", {callback=M.resolve_thread_toggle})
+    vim.api.nvim_buf_set_keymap(state.buf, 'n', config.config.keymaps.actions, "", {callback=M.comment_actions})
+    if not config.config.disable_keymaps then
+        vim.api.nvim_buf_set_keymap(state.buf, 'n', config.config.keymaps.goto_issue, "", {callback=issues.open_issue_under_cursor})
     end
 
     vim.api.nvim_create_autocmd({"CursorMoved", "CursorMovedI"}, {
@@ -217,10 +210,6 @@ end
 
 -- render comment will render a comment object into buffer lines.
 local function render_comment(comment, outdated)
-    if config.icon_set ~= nil then
-        icon_set = lib_icons[config.icon_set]
-    end
-
     local lines = {}
     local reaction_lines = count_reactions(comment)
     local reaction_string = ""
@@ -229,7 +218,7 @@ local function render_comment(comment, outdated)
     end
 
     local author = comment.comment["author"]["login"]
-    local title = string.format("%s %s  %s", symbols.top, icon_set["Account"], author)
+    local title = string.format("%s %s  %s", symbols.top, config.icon_set["Account"], author)
     if outdated then
         title = title .. " [outdated]"
     elseif comment.comment["state"] == "PENDING" then
@@ -255,9 +244,6 @@ end
 --
 -- when submit() is subsequently called thread will be created.
 function M.create_thread(details)
-    if config.icon_set ~= nil then
-        icon_set = lib_icons[config.icon_set]
-    end
     if state.buf == nil or not vim.api.nvim_buf_is_valid(state.buf) then
         setup_buffer()
     end
@@ -269,7 +255,7 @@ function M.create_thread(details)
     vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, {})
 
     local buffer_lines = {}
-    table.insert(buffer_lines, string.format("%s  Create your new comment below... (submit: %s)", icon_set["Account"], config.keymaps.submit_comment))
+    table.insert(buffer_lines, string.format("%s  Create your new comment below... (submit: %s)", config.icon_set["Account"], config.config.keymaps.submit_comment))
     state.text_area_off = #buffer_lines
     table.insert(buffer_lines, "")
     vim.api.nvim_buf_set_lines(state.buf, 0, #buffer_lines, false, buffer_lines)
@@ -390,9 +376,6 @@ end
 --
 -- this method is intended to work as a 'refresh' method as well.
 function M.render_thread(thread_id, n_of, displayed_thread)
-    if config.icon_set ~= nil then
-        icon_set = lib_icons[config.icon_set]
-    end
     if state.buf == nil or not vim.api.nvim_buf_is_valid(state.buf) then
         setup_buffer()
     end
@@ -443,17 +426,17 @@ function M.render_thread(thread_id, n_of, displayed_thread)
     end
 
     -- render thread header
-    table.insert(buffer_lines, string.format("%s %s  Thread [%d/%d]", symbols.top, icon_set["MultiComment"], n_of[1], n_of[2]))
-    table.insert(buffer_lines, string.format("%s %s  Author: %s", symbols.left, icon_set["Account"], root_comment.comment["author"]["login"]))
-    table.insert(buffer_lines, string.format("%s %s  Path: %s:%d", symbols.left, icon_set["File"], thread.thread["path"], line))
-    table.insert(buffer_lines, string.format("%s %s  Resolved: %s", symbols.left, icon_set["CheckAll"], thread.thread["isResolved"]))
-    table.insert(buffer_lines, string.format("%s %s  Outdated: %s", symbols.left, icon_set["History"], thread.thread["isOutdated"]))
-    table.insert(buffer_lines, string.format("%s %s  Created: %s", symbols.left, icon_set["Calendar"], root_comment.comment["createdAt"]))
-    table.insert(buffer_lines, string.format("%s %s  Last Updated: %s", symbols.left, icon_set["Calendar"], root_comment.comment["updatedAt"]))
+    table.insert(buffer_lines, string.format("%s %s  Thread [%d/%d]", symbols.top, config.icon_set["MultiComment"], n_of[1], n_of[2]))
+    table.insert(buffer_lines, string.format("%s %s  Author: %s", symbols.left, config.icon_set["Account"], root_comment.comment["author"]["login"]))
+    table.insert(buffer_lines, string.format("%s %s  Path: %s:%d", symbols.left, config.icon_set["File"], thread.thread["path"], line))
+    table.insert(buffer_lines, string.format("%s %s  Resolved: %s", symbols.left, config.icon_set["CheckAll"], thread.thread["isResolved"]))
+    table.insert(buffer_lines, string.format("%s %s  Outdated: %s", symbols.left, config.icon_set["History"], thread.thread["isOutdated"]))
+    table.insert(buffer_lines, string.format("%s %s  Created: %s", symbols.left, config.icon_set["Calendar"], root_comment.comment["createdAt"]))
+    table.insert(buffer_lines, string.format("%s %s  Last Updated: %s", symbols.left, config.icon_set["Calendar"], root_comment.comment["updatedAt"]))
     -- preview in header
     write_preview(thread, buffer_lines)
     table.insert(buffer_lines, symbols.left)
-    table.insert(buffer_lines, string.format("%s (submit: %s)(comment actions: %s)(un/resolve: %s)", symbols.bottom, config.keymaps.submit_comment, config.keymaps.actions, config.keymaps.resolve_thread))
+    table.insert(buffer_lines, string.format("%s (submit: %s)(comment actions: %s)(un/resolve: %s)", symbols.bottom, config.config.keymaps.submit_comment, config.config.keymaps.actions, config.config.keymaps.resolve_thread))
     table.insert(buffer_lines, "")
 
     -- render root comment
@@ -478,7 +461,7 @@ function M.render_thread(thread_id, n_of, displayed_thread)
 
     -- user text area
     table.insert(buffer_lines, "")
-    table.insert(buffer_lines, string.format("%s  %s", icon_set["Account"], "Add a reply below..."))
+    table.insert(buffer_lines, string.format("%s  %s", config.icon_set["Account"], "Add a reply below..."))
 
     -- record the offset to our reply message, we'll allow editing here
     state.text_area_off = #buffer_lines
@@ -531,9 +514,6 @@ end
 -- places the thread_buffer in "editing_comment" state and will submit the changes
 -- on submit()
 function M.edit_comment()
-    if config.icon_set ~= nil then
-        icon_set = lib_icons[config.icon_set]
-    end
     local comment = comment_under_cursor()
     if comment == nil then
         return
@@ -546,7 +526,7 @@ function M.edit_comment()
         return
     end
 
-    table.insert(lines, string.format("%s  %s", icon_set["Account"], "Edit the message below..."))
+    table.insert(lines, string.format("%s  %s", config.icon_set["Account"], "Edit the message below..."))
     for _, line in ipairs(parse_comment_body(comment.comment["body"], false)) do
         table.insert(lines, line)
     end

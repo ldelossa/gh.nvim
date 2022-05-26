@@ -3,8 +3,7 @@ local M = {}
 local lib_util_path = require('litee.lib.util.path')
 local lib_util_win  = require('litee.lib.util.window')
 local lib_notify    = require('litee.lib.notify')
-local lib_icons     = require('litee.lib.icons')
-local config        = require('litee.gh.config').config
+local config        = require('litee.gh.config')
 
 local s             = require('litee.gh.pr.state')
 local thread_buffer = require('litee.gh.pr.thread_buffer')
@@ -18,17 +17,13 @@ local function init()
     if init_done then
         return
     end
-    local icon_set = "default"
-    if config.icon_set ~= nil then
-        icon_set = lib_icons[config.icon_set]
-    end
 
-    vim.fn.sign_define("gh-comment", {text=icon_set["Comment"], texthl = "LTComment"})
-    vim.fn.sign_define("gh-comment-multi", {text=icon_set["MultiComment"], texthl = "LTMultiComment"})
-    vim.fn.sign_define("gh-comment-outdated", {text=icon_set["Comment"], texthl = "LTFailure"})
-    vim.fn.sign_define("gh-comment-resolved", {text=icon_set["Comment"], texthl = "LTSuccess"})
-    vim.fn.sign_define("gh-comment-pending", {text=icon_set["Comment"], texthl = "LTWarning"})
-    vim.fn.sign_define("gh-can-comment", {text=icon_set["DiffAdded"], texthl = "LTDiffAdd"})
+    vim.fn.sign_define("gh-comment", {text=config.icon_set["Comment"], texthl = "LTComment"})
+    vim.fn.sign_define("gh-comment-multi", {text=config.icon_set["MultiComment"], texthl = "LTMultiComment"})
+    vim.fn.sign_define("gh-comment-outdated", {text=config.icon_set["Comment"], texthl = "LTFailure"})
+    vim.fn.sign_define("gh-comment-resolved", {text=config.icon_set["Comment"], texthl = "LTSuccess"})
+    vim.fn.sign_define("gh-comment-pending", {text=config.icon_set["Comment"], texthl = "LTWarning"})
+    vim.fn.sign_define("gh-can-comment", {text=config.icon_set["DiffAdded"], texthl = "LTDiffAdd"})
     init_done = true
 end
 

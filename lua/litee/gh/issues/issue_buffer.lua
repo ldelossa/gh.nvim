@@ -4,8 +4,8 @@ local lib_util      = require('litee.lib.util')
 
 local ghcli         = require('litee.gh.ghcli')
 local lib_notify    = require('litee.lib.notify')
-local config        = require('litee.gh.config').config
 local reactions     = require('litee.gh.pr.reactions')
+local config        = require('litee.gh.config')
 
 local M = {}
 
@@ -163,10 +163,10 @@ local function setup_buffer(number)
     vim.api.nvim_buf_set_option(buf, 'wrapmargin', 0)
     vim.api.nvim_buf_set_option(buf, 'ofu', 'v:lua.GH_completion')
 
-    vim.api.nvim_buf_set_keymap(buf, 'n', config.keymaps.submit_comment, "", {callback=M.submit})
-    vim.api.nvim_buf_set_keymap(buf, 'n', config.keymaps.actions, "", {callback=M.comment_actions})
+    vim.api.nvim_buf_set_keymap(buf, 'n', config.config.keymaps.submit_comment, "", {callback=M.submit})
+    vim.api.nvim_buf_set_keymap(buf, 'n', config.config.keymaps.actions, "", {callback=M.comment_actions})
     if not config.disable_keymaps then
-        vim.api.nvim_buf_set_keymap(buf, 'n', config.keymaps.goto_issue, "", {callback=callbacks["goto_cb"]})
+        vim.api.nvim_buf_set_keymap(buf, 'n', config.config.keymaps.goto_issue, "", {callback=callbacks["goto_cb"]})
     end
 
     vim.api.nvim_create_autocmd({"CursorMoved", "CursorMovedI"}, {
@@ -219,14 +219,10 @@ local function map_reactions(comment)
 end
 
 local function render_comment(comment)
-    local icon_set = "default"
-    if config.icon_set ~= nil then
-        icon_set = lib_icons[config.icon_set]
-    end
     local lines = {}
     local reaction_string = map_reactions(comment)
     local author = comment["user"]["login"]
-    local title = string.format("%s %s  %s", symbols.top, icon_set["Account"], author)
+    local title = string.format("%s %s  %s", symbols.top, config.icon_set["Account"], author)
     table.insert(lines, title)
 
     table.insert(lines, symbols.left)
@@ -298,11 +294,6 @@ end
 -- render_issue will return a buffer of the issue and set the issue state's
 -- buffer field
 function M.render_issue(number)
-    local icon_set = "default"
-    if config.icon_set ~= nil then
-        icon_set = lib_icons[config.icon_set]
-    end
-
     local state = M.state_by_number[number]
     if state == nil then
         return
@@ -326,18 +317,18 @@ function M.render_issue(number)
     else
         type = "Issue"
     end
-    table.insert(buffer_lines, string.format("%s %s  %s %s%s", symbols.top, icon_set["GitIssue"], type, icon_set["Number"], state.issue["number"]))
-    table.insert(buffer_lines, string.format("%s %s  Author: %s", symbols.left, icon_set["Account"], state.issue["user"]["login"]))
-    table.insert(buffer_lines, string.format("%s %s  Created: %s", symbols.left, icon_set["Calendar"], state.issue["created_at"]))
-    table.insert(buffer_lines, string.format("%s %s  Last Updated: %s", symbols.left, icon_set["Calendar"], state.issue["updated_at"]))
-    table.insert(buffer_lines, string.format("%s %s  Title: %s", symbols.left, icon_set["Pencil"], state.issue["title"]))
+    table.insert(buffer_lines, string.format("%s %s  %s %s%s", symbols.top, config.icon_set["GitIssue"], type, config.icon_set["Number"], state.issue["number"]))
+    table.insert(buffer_lines, string.format("%s %s  Author: %s", symbols.left, config.icon_set["Account"], state.issue["user"]["login"]))
+    table.insert(buffer_lines, string.format("%s %s  Created: %s", symbols.left, config.icon_set["Calendar"], state.issue["created_at"]))
+    table.insert(buffer_lines, string.format("%s %s  Last Updated: %s", symbols.left, config.icon_set["Calendar"], state.issue["updated_at"]))
+    table.insert(buffer_lines, string.format("%s %s  Title: %s", symbols.left, config.icon_set["Pencil"], state.issue["title"]))
     table.insert(buffer_lines, symbols.left)
     local body_lines = parse_comment_body(state.issue["body"], true)
     for _, l in ipairs(body_lines) do
         table.insert(buffer_lines, l)
     end
     table.insert(buffer_lines, symbols.left)
-    table.insert(buffer_lines, string.format("%s (submit: %s)(comment actions: %s)", symbols.bottom, config.keymaps.submit_comment, config.keymaps.actions))
+    table.insert(buffer_lines, string.format("%s (submit: %s)(comment actions: %s)", symbols.bottom, config.config.keymaps.submit_comment, config.config.keymaps.actions))
     table.insert(marks_to_create, {#buffer_lines, state.issue})
 
     table.insert(buffer_lines, "")
@@ -351,7 +342,7 @@ function M.render_issue(number)
 
     -- leave room for the user to reply.
     table.insert(buffer_lines, "")
-    table.insert(buffer_lines, string.format("%s  %s", icon_set["Account"], "Add a comment below..."))
+    table.insert(buffer_lines, string.format("%s  %s", config.icon_set["Account"], "Add a comment below..."))
 
     -- record the offset to our reply message, we'll allow editing here
     state.text_area_off = #buffer_lines
@@ -431,11 +422,6 @@ local function update_iss_body(state, body)
 end
 
 function M.edit_iss_body(iss)
-    local icon_set = "default"
-    if config.icon_set ~= nil then
-        icon_set = lib_icons[config.icon_set]
-    end
-
     local state = M.state_by_buf[vim.api.nvim_get_current_buf()]
     if state == nil then
         return
@@ -448,7 +434,7 @@ function M.edit_iss_body(iss)
 
     local lines = {}
 
-    table.insert(lines, string.format("%s  %s", icon_set["Account"], "Edit the issue's body below..."))
+    table.insert(lines, string.format("%s  %s", config.icon_set["Account"], "Edit the issue's body below..."))
     for _, line in ipairs(parse_comment_body(iss["body"], false)) do
         table.insert(lines, line)
     end
@@ -468,11 +454,6 @@ function M.edit_iss_body(iss)
 end
 
 function M.edit_comment()
-    local icon_set = "default"
-    if config.icon_set ~= nil then
-        icon_set = lib_icons[config.icon_set]
-    end
-
     local state = M.state_by_buf[vim.api.nvim_get_current_buf()]
     if state == nil then
         return
@@ -490,7 +471,7 @@ function M.edit_comment()
         return
     end
 
-    table.insert(lines, string.format("%s  %s", icon_set["Account"], "Edit the message below..."))
+    table.insert(lines, string.format("%s  %s", config.icon_set["Account"], "Edit the message below..."))
     for _, line in ipairs(parse_comment_body(comment["body"], false)) do
         table.insert(lines, line)
     end

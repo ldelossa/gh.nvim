@@ -1,38 +1,28 @@
-local lib_icons = require('litee.lib.icons')
-local config = require('litee.gh.config').config
-local s = require('litee.gh.pr.state')
 local lib_path = require('litee.lib.util.path')
+local config   = require('litee.gh.config')
+
+local s = require('litee.gh.pr.state')
 
 local M = {}
 
 local function marshal_review_node(node)
-    local icon_set = "default"
-    if config.icon_set ~= nil then
-        icon_set = lib_icons[config.icon_set]
-    end
-
     local name, detail, icon = "", "", ""
     name = string.format("%s", node.review["user"]["login"])
     if node.review["state"] == 'APPROVED' then
         name  = name .. " (approved)"
-        icon = icon_set["PassFilled"]
+        icon = config.icon_set["PassFilled"]
     elseif node.review["state"] == 'PENDING' then
         name  = name .. " (pending)"
-        icon = icon_set["Pencil"]
+        icon = config.icon_set["Pencil"]
     else
         name  = name .. " (changes required)"
-        icon = icon_set["RequestChanges"]
+        icon = config.icon_set["RequestChanges"]
     end
 
     return name, detail, icon
 end
 
 local function marshal_requested_review_node(node)
-    local icon_set = "default"
-    if config.icon_set ~= nil then
-        icon_set = lib_icons[config.icon_set]
-    end
-
     local name, detail, icon = "", "", ""
 
     local n = node.requested_review["login"]
@@ -40,17 +30,12 @@ local function marshal_requested_review_node(node)
         n = node.requested_review["slug"]
     end
     name = string.format("%s (requested)", n)
-    icon = icon_set["CircleFilled"]
+    icon = config.icon_set["CircleFilled"]
 
     return name, detail, icon
 end
 
 local function marshal_thread_node(node)
-    local icon_set = "default"
-    if config.icon_set ~= nil then
-        icon_set = lib_icons[config.icon_set]
-    end
-
     local name, detail, icon = "", "", ""
 
     local line = nil
@@ -64,9 +49,9 @@ local function marshal_thread_node(node)
     name = string.format("%s:%d", node.thread["path"], line)
 
     if node.thread["isResolved"] then
-        icon = icon_set["CheckAll"]
+        icon = config.icon_set["CheckAll"]
     else
-        icon = icon_set["MultiComment"]
+        icon = config.icon_set["MultiComment"]
     end
 
     local count = #node["children"]
@@ -79,7 +64,7 @@ local function marshal_issue_comment_node(node)
     local name, detail, icon = "", "", ""
 
     name = "pr comment by " .. node.issue_comment["user"]["login"]
-    icon = icon_set["Comment"]
+    icon = config.icon_set["Comment"]
 
     return name, detail, icon
 end
@@ -102,19 +87,19 @@ local function marshal_check_node(node)
         detail = node.check["conclusion"]
     end
     if node.check["conclusion"] == "success" then
-        icon = icon_set["PassFilled"]
+        icon = config.icon_set["PassFilled"]
     elseif node.check["conclusion"] == "failure" then
-        icon = icon_set["CircleStop"]
+        icon = config.icon_set["CircleStop"]
     elseif node.check["conclusion"] == "skipped" then
-        icon = icon_set["CircleSlash"]
+        icon = config.icon_set["CircleSlash"]
     elseif node.check["status"] == "in_progress" then
-        icon = icon_set["Sync"]
+        icon = config.icon_set["Sync"]
         detail = "in progress"
     elseif node.check["status"] == "queued" then
-        icon = icon_set["CirclePause"]
+        icon = config.icon_set["CirclePause"]
         detail = "queued"
     else
-        icon = icon_set["Info"]
+        icon = config.icon_set["Info"]
     end
 
     return name, detail, icon
@@ -127,7 +112,7 @@ local function marshal_file_node(node)
     if node.file["state"] ~= vim.NIL then
         detail = node.file["status"]
     end
-    icon = icon_set["File"]
+    icon = config.icon_set["File"]
 
     return name, detail, icon
 end
@@ -144,17 +129,12 @@ local function marshal_commit_node(node)
     end
 
     detail = commit_title
-    icon = icon_set["GitCommit"]
+    icon = config.icon_set["GitCommit"]
 
     return name, detail, icon
 end
 
 local function marshal_comment_node(node)
-    local icon_set = "default"
-    if config.icon_set ~= nil then
-        icon_set = lib_icons[config.icon_set]
-    end
-
     local name, detail, icon = "", "", ""
 
     if node.comment["replyTo"] ~= vim.NIL then
@@ -163,9 +143,9 @@ local function marshal_comment_node(node)
         name = "comment by " .. node.comment["author"]["login"]
     end
     if node.comment["state"] == "PENDING" then
-        icon = icon_set["Pencil"]
+        icon = config.icon_set["Pencil"]
     else
-        icon = icon_set["Comment"]
+        icon = config.icon_set["Comment"]
     end
 
     return name, detail, icon
@@ -175,19 +155,14 @@ local function marshal_pr_node(node)
     local name, detail, icon = "", "", ""
 
     name = string.format("#%d %s", node.pr["number"], node.pr["title"])
-    icon = icon_set["GitPullRequest"]
+    icon = config.icon_set["GitPullRequest"]
 
     return name, detail, icon
 end
 
 local function check_notifications(node, name, detail, icon)
-    local icon_set = "default"
-    if config.icon_set ~= nil then
-        icon_set = lib_icons[config.icon_set]
-    end
-
     if s.pull_state.notifications_by_id[node.key] ~= nil then
-        return name, detail, icon_set["Notification"]
+        return name, detail, config.icon_set["Notification"]
     else
         return name, detail, icon
     end
