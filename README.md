@@ -6,15 +6,18 @@
              ╚═════╝ ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝  ╚═══╝  ╚═╝╚═╝     ╚═╝
 
 
-GH.nvim, initially, is a plugin for interactive code reviews which take place
+`gh.nvim`, initially, is a plugin for interactive code reviews which take place
 on the GitHub platform.
 
 If you want to go straight to setup and configuration click [here](#setup--configuration)
 
+If you're a visual learner you can check out the official [gh.nvim guide](https://who.ldelossa.is/posts/gh-nvim/). 
+This is a work in progress as ``gh.nvim`` changes and matures.
+
 This plugin was created due to the repeat frustration of performing code reviews
 of complex changes in the GitHub web UI.
 
-The mentioned frustration seemed to boil down to a few major drawbacks which GH.nvim
+The mentioned frustration seemed to boil down to a few major drawbacks which `gh.nvim`
 sets out to fix. These are:
 
 1) Lack of context during code review
@@ -23,7 +26,7 @@ sets out to fix. These are:
     function works, but you are not aware all the places this function may be
     called. Its difficult to safely say that the patch is OK and approve it.
 
-    To alleviate this, GH.nvim will make the pull request code locally available
+    To alleviate this, `gh.nvim` will make the pull request code locally available
     on your file system.
 
 2) Lack of sufficient editor tools like LSP
@@ -34,10 +37,10 @@ sets out to fix. These are:
     usages of the editing function is now possible.
 
 3) Lack of automation when attempting to view the full context of a pull request.
-    GH.nvim automates the process of making the pull request's code locally available.
-    To do this, GH.nvim embeds a `git` CLI wrapper.
+    `gh.nvim` automates the process of making the pull request's code locally available.
+    To do this, `gh.nvim` embeds a `git` CLI wrapper.
 
-    When a pull request is opened in GH.nvim the remote is added locally, the
+    When a pull request is opened in `gh.nvim` the remote is added locally, the
     branch is fetched, and the repo is checked out to the pull request's HEAD.
 
 4) Inability to edit and run the code in the pull request.
@@ -56,14 +59,10 @@ sets out to fix. These are:
     environment will be running the pull request's code and you can perform sanity
     checks easily.
 
-GH.nvim is a "commit-wise" review tool. This means you browse the changed files
-by their commits. This will feel familiar to those who immediately click on the
-"commits" tab on the GitHub UI to view the incremental changes of the pull request.
-
 see doc/gh-nvm.txt for complete usage and more details.
 
 Checkout my [rational and demo video](https://youtu.be/hhrWwYfMK1I) to get an initial idea
-of how gh.nvim works, why it works the way it does, and its look and feel.
+of how `gh.nvim` works, why it works the way it does, and its look and feel.
 
 ### Setup & Configuration
 
@@ -72,7 +71,7 @@ the [`git`](https://git-scm.com/) and [`gh`](https://github.com/cli/cli) CLI too
 are required for this plugin to work.
 
 
-GH.nvim relies on [Litee.nvim](https://github.com/ldelossa/litee.nvim). To setup GH.nvim
+`gh.nvim` relies on [Litee.nvim](https://github.com/ldelossa/litee.nvim). To setup `gh.nvim`
 with the default configuration add the following:
 
 Using [packer.nvim](https://github.com/wbthomason/packer.nvim)
@@ -84,8 +83,8 @@ use {
   }
 ```
 
-Then call the setup function for both Litee.nvim and GH.nvim. Make sure you setup
-Litee.nvim before GH.nvim! The default configuration for GH.nvim is shown below (the
+Then call the setup function for both Litee.nvim and `gh.nvim`. Make sure you setup
+Litee.nvim before `gh.nvim`! The default configuration for `gh.nvim` is shown below (the
 default configuration for Litee.nvim can be found on it's Github page).
 
 ```lua
@@ -118,7 +117,7 @@ require('litee.gh').setup({
 })
 ```
 
-It's highly recommended to use GH.nvim with either fzf.lua or telescope to override
+It's highly recommended to use `gh.nvim` with either fzf.lua or telescope to override
 `vim.ui.select`. If you use telescope, it will work out of the box. If you want to use
 fzf.lua, add the following snippet to your config:
 
