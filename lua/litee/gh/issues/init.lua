@@ -1,11 +1,10 @@
 local lib_notify = require('litee.lib.notify')
-local lib_icons     = require('litee.lib.icons')
 local lib_path      = require('litee.lib.util.path')
 
-local config        = require('litee.gh.config').config
 local ghcli         = require('litee.gh.ghcli')
 local issue_buffer  = require('litee.gh.issues.issue_buffer')
 local preview       = require('litee.gh.issues.preview')
+local config        = require('litee.gh.config')
 
 local M = {}
 
@@ -70,11 +69,6 @@ function M.preview_issue_under_cursor()
 end
 
 function M.open_issue(args)
-    local icon_set = "default"
-    if config.icon_set ~= nil then
-        icon_set = lib_icons[config.icon_set]
-    end
-
     if args["args"] ~= "" then
             M.open_issue_by_number(args["args"])
             return
@@ -91,7 +85,7 @@ function M.open_issue(args)
             {
                 prompt = 'Select an issue to open:',
                 format_item = function(issue)
-                    return string.format([[%s%d | %s  "%s" | %s  %s]], icon_set["Number"], issue["number"], icon_set["GitPullRequest"], issue["title"], icon_set["Account"], issue["user"]["login"])
+                    return string.format([[%s%d | %s  "%s" | %s  %s]], config.icon_set["Number"], issue["number"], config.icon_set["GitPullRequest"], issue["title"], config.icon_set["Account"], issue["user"]["login"])
                 end,
             },
             function(_, idx)

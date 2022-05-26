@@ -1,15 +1,16 @@
 local M = {}
 
 M.config = {
-    -- the icon set to use from litee.nvim.
-    -- "nerd", "codicons", "default"
-    icon_set    = "codicons",
     -- deprecated, around for compatability for now.
     jump_mode   = "invoking",
     -- remap the arrow keys to resize any litee.nvim windows.
     map_resize_keys = false,
     -- do not map any keys inside any gh.nvim buffers.
     disable_keymaps = false,
+    -- the icon set to use.
+    icon_set = "default",
+    -- any custom icons to use.
+    icon_set_custom = nil,
     -- defines keymaps in gh.nvim buffers.
     keymaps = {
         -- when inside a gh.nvim panel, this key will open a node if it has
@@ -39,5 +40,11 @@ M.config = {
         goto_web = "gx"
     },
 }
+
+M.icon_set = nil
+
+function M.set_icon_set()
+    M.icon_set = require('litee.lib').icon_set_update(M.config.icon_set_custom, M.config.icon_set)
+end
 
 return M

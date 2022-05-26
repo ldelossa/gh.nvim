@@ -6,7 +6,7 @@ local lib_panel     = require('litee.lib.panel')
 local lib_util_win  = require('litee.lib.util.window')
 
 local commands          = require('litee.gh.commands')
-local config            = require('litee.gh.config').config
+local c                 = require('litee.gh.config')
 local pr_buffer         = require('litee.gh.pr.buffer')
 local pr_marshallers    = require('litee.gh.pr.marshal')
 local pr                = require('litee.gh.pr')
@@ -33,16 +33,16 @@ local function register_pr_component()
         end
 
         -- setup other buffer keymaps
-        if not config.disable_keymaps then
-            vim.api.nvim_buf_set_keymap(state["pr"].buf, "n", config.keymaps.expand, "",{
+        if not c.config.disable_keymaps then
+            vim.api.nvim_buf_set_keymap(state["pr"].buf, "n", c.config.keymaps.expand, "",{
                 silent = true,
                 callback = pr.expand_pr,
             })
-            vim.api.nvim_buf_set_keymap(state["pr"].buf, "n", config.keymaps.collapse, "",{
+            vim.api.nvim_buf_set_keymap(state["pr"].buf, "n", c.config.keymaps.collapse, "",{
                 silent = true,
                 callback = pr.collapse_pr,
             })
-            vim.api.nvim_buf_set_keymap(state["pr"].buf, "n", config.keymaps.goto_web, "",{
+            vim.api.nvim_buf_set_keymap(state["pr"].buf, "n", c.config.keymaps.goto_web, "",{
                 silent = true,
                 callback = pr.open_node_url,
             })
@@ -57,7 +57,7 @@ local function register_pr_component()
     end
 
     local function post_window_create()
-        if not config.no_hls then
+        if not c.config.no_hls then
             lib_util_win.set_tree_highlights()
         end
         -- set scrolloff so contents stays centered
@@ -86,16 +86,16 @@ local function register_pr_files_component()
         end
 
         -- setup other buffer keymaps
-        if not config.disable_keymaps then
-            vim.api.nvim_buf_set_keymap(state["pr_files"].buf, "n", config.keymaps.expand, "",{
+        if not c.config.disable_keymaps then
+            vim.api.nvim_buf_set_keymap(state["pr_files"].buf, "n", c.config.keymaps.expand, "",{
                 silent = true,
                 callback = pr.expand_pr_commits,
             })
-            vim.api.nvim_buf_set_keymap(state["pr_files"].buf, "n", config.keymaps.collapse, "",{
+            vim.api.nvim_buf_set_keymap(state["pr_files"].buf, "n", c.config.keymaps.collapse, "",{
                 silent = true,
                 callback = pr.collapse_pr_commits,
             })
-            vim.api.nvim_buf_set_keymap(state["pr_files"].buf, "n", config.keymaps.goto_web, "",{
+            vim.api.nvim_buf_set_keymap(state["pr_files"].buf, "n", c.config.keymaps.goto_web, "",{
                 silent = true,
                 callback = pr.open_node_url,
             })
@@ -110,7 +110,7 @@ local function register_pr_files_component()
     end
 
     local function post_window_create()
-        if not config.no_hls then
+        if not c.config.no_hls then
             lib_util_win.set_tree_highlights()
         end
         -- set scrolloff so contents stays centered
@@ -135,16 +135,16 @@ local function register_pr_review_component()
             return false
         end
 
-        if not config.disable_keymaps then
-            vim.api.nvim_buf_set_keymap(state["pr_review"].buf, "n", config.keymaps.expand, "",{
+        if not c.config.disable_keymaps then
+            vim.api.nvim_buf_set_keymap(state["pr_review"].buf, "n", c.config.keymaps.expand, "",{
                 silent = true,
                 callback = pr.expand_pr_review,
             })
-            vim.api.nvim_buf_set_keymap(state["pr_review"].buf, "n", config.keymaps.collapse, "",{
+            vim.api.nvim_buf_set_keymap(state["pr_review"].buf, "n", c.config.keymaps.collapse, "",{
                 silent = true,
                 callback = pr.collapse_pr_review,
             })
-            vim.api.nvim_buf_set_keymap(state["pr_review"].buf, "n", config.keymaps.goto_web, "",{
+            vim.api.nvim_buf_set_keymap(state["pr_review"].buf, "n", c.config.keymaps.goto_web, "",{
                 silent = true,
                 callback = pr.open_node_url,
             })
@@ -159,7 +159,7 @@ local function register_pr_review_component()
     end
 
     local function post_window_create()
-        if not config.no_hls then
+        if not c.config.no_hls then
             lib_util_win.set_tree_highlights()
         end
         -- set scrolloff so contents stays centered
@@ -173,7 +173,7 @@ local function merge_configs(user_config)
     -- merge keymaps
     if user_config.keymaps ~= nil then
         for k, v in pairs(user_config.keymaps) do
-            config.keymaps[k] = v
+            c.config.keymaps[k] = v
         end
     end
 
@@ -182,7 +182,7 @@ local function merge_configs(user_config)
         if k == "keymaps" then
             goto continue
         end
-        config[k] = v
+        c.config[k] = v
         ::continue::
     end
 end
@@ -202,6 +202,8 @@ function M.setup(user_config)
     if user_config ~= nil then
         merge_configs(user_config)
     end
+
+    c.set_icon_set()
 
     register_pr_component()
     register_pr_files_component()

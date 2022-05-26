@@ -1,6 +1,5 @@
 local lib_tree_node = require('litee.lib.tree.node')
-local lib_icons     = require('litee.lib.icons')
-local config        = require('litee.gh.config').config
+local config        = require('litee.gh.config')
 
 local M = {}
 
@@ -12,13 +11,9 @@ local symbols = {
 }
 
 local function parse_comment(author, body, left_sign, bottom_sign)
-    local icon_set = "default"
-    if config.icon_set ~= nil then
-        icon_set = lib_icons[config.icon_set]
-    end
     local lines = {}
     if author ~= nil then
-        table.insert(lines, string.format("%s %s  %s", symbols.top, icon_set["Account"], author))
+        table.insert(lines, string.format("%s %s  %s", symbols.top, config.icon_set["Account"], author))
     end
     body = vim.fn.split(body, '\n')
     for _, line in ipairs(body) do
@@ -91,10 +86,6 @@ end
 -- @return node (table) the root node of the details sub-tree with children
 -- attached.
 function M.build_details_tree(pull, depth, prev_tree)
-    if config.icon_set ~= nil then
-        icon_set = lib_icons[config.icon_set]
-    end
-
     local prev_root = nil
     if prev_tree ~= nil and prev_tree.depth_table[depth] ~= nil then
         for _, prev_node in ipairs(prev_tree.depth_table[depth]) do
@@ -127,7 +118,7 @@ function M.build_details_tree(pull, depth, prev_tree)
     number.details = {
         name = number.name,
         detail = string.format("%d", pull["number"]),
-        icon = icon_set["Number"]
+        icon = config.icon_set["Number"]
     }
     number.expanded = true
 
@@ -139,7 +130,7 @@ function M.build_details_tree(pull, depth, prev_tree)
     state.details = {
         name = state.name,
         detail = pull["state"],
-        icon = icon_set["Info"]
+        icon = config.icon_set["Info"]
     }
     state.expanded = true
 
@@ -151,7 +142,7 @@ function M.build_details_tree(pull, depth, prev_tree)
     author.details = {
         name = author.name,
         detail = pull["user"]["login"],
-        icon = icon_set["Account"]
+        icon = config.icon_set["Account"]
     }
     author.expanded = true
 
@@ -163,7 +154,7 @@ function M.build_details_tree(pull, depth, prev_tree)
     base.details = {
         name = base.name,
         detail = pull["base"]["label"],
-        icon = icon_set["GitBranch"]
+        icon = config.icon_set["GitBranch"]
     }
     base.expanded = true
 
@@ -175,7 +166,7 @@ function M.build_details_tree(pull, depth, prev_tree)
     head.details = {
         name = head.name,
         detail = pull["head"]["label"],
-        icon = icon_set["GitBranch"]
+        icon = config.icon_set["GitBranch"]
     }
     head.expanded = true
 
@@ -187,7 +178,7 @@ function M.build_details_tree(pull, depth, prev_tree)
     repo.details = {
         name = repo.name,
         detail = pull["base"]["repo"]["full_name"],
-        icon = icon_set["GitRepo"]
+        icon = config.icon_set["GitRepo"]
     }
     repo.expanded = true
 
@@ -199,7 +190,7 @@ function M.build_details_tree(pull, depth, prev_tree)
     labels.details = {
         name = labels.name,
         detail = "",
-        icon = icon_set["Bookmark"]
+        icon = config.icon_set["Bookmark"]
     }
     labels.expanded = true
     for _, label in ipairs(pull["labels"]) do
@@ -212,7 +203,7 @@ function M.build_details_tree(pull, depth, prev_tree)
         l_node.details = {
             name = l_node.name,
             detail = "",
-            icon = icon_set["Bookmark"]
+            icon = config.icon_set["Bookmark"]
         }
         l_node.expanded = true
         table.insert(labels.children, l_node)
@@ -239,7 +230,7 @@ function M.build_details_tree(pull, depth, prev_tree)
         a_node.details = {
             name = a_node.name,
             detail = "",
-            icon = icon_set["Account"]
+            icon = config.icon_set["Account"]
         }
         a_node.expanded = true
         table.insert(assignees.children, a_node)

@@ -1,17 +1,11 @@
-
-local config = require('litee.gh.config').config
-local lib_tree_node = require('litee.lib.tree.node')
 local lib_path = require('litee.lib.util.path')
-local lib_icons = require('litee.lib.icons')
+local config   = require('litee.gh.config')
+
+local lib_tree_node = require('litee.lib.tree.node')
 
 local M = {}
 
 function M.build_files_changed_tree(files, depth, prev_tree)
-    local icon_set = "default"
-    if config.icon_set ~= nil then
-        icon_set = lib_icons[config.icon_set]
-    end
-
     local prev_root = nil
     if prev_tree ~= nil and prev_tree.depth_table[depth] ~= nil then
         for _, prev_node in ipairs(prev_tree.depth_table[depth]) do
@@ -74,7 +68,7 @@ function M.build_files_changed_tree(files, depth, prev_tree)
         dir.details = {
             name = lib_path.basename(path),
             detail = "",
-            icon = icon_set["Folder"]
+            icon = config.icon_set["Folder"]
         }
         if dir.depth == 2 then
             dir.expanded = false
