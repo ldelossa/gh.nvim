@@ -668,7 +668,7 @@ local function open_pr_node(ctx, node)
         if file == nil then
             return
         end
-        diff_view.open_diffsplit(commit, file, node.thread)
+        diff_view.open_diffsplit(commit, file, node.thread, true)
     end
     if node.comment ~= nil then
          -- checkout head if we are opening a thread from "Conversations:" tree.
@@ -683,7 +683,7 @@ local function open_pr_node(ctx, node)
         if file == nil then
             return
         end
-        diff_view.open_diffsplit(commit, file, thread.thread)
+        diff_view.open_diffsplit(commit, file, thread.thread, true)
     end
     if node.review ~= nil then
         handlers.review_handler(node.review["node_id"])
