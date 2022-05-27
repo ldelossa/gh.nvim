@@ -302,9 +302,11 @@ Commands                                                               *gh-comma
     -- expand the node within the Review panel
     vim.api.nvim_create_user_command("GHExpandReview", pr.expand_pr_review, {})
     -- refresh all details of the PR
-    vim.api.nvim_create_user_command("GHRefreshPR", pr_handlers.global_refresh, {})
+    vim.api.nvim_create_user_command("GHRefreshPR", pr_handlers.on_refresh, {})
     -- refresh just comments, useful to fresh convo buffers quicker.
     vim.api.nvim_create_user_command("GHRefreshComments", pr_handlers.refresh_comments, {})
+    -- refresh any open issue buffers, if a PR is opened, this will be ran as part of "GHRefreshPR"
+    vim.api.nvim_create_user_command("GHRefreshIssues", issues.on_refresh, {})
     -- start a code review
     vim.api.nvim_create_user_command("GHStartReview", pr.start_review, {})
     -- submit all pending comments in a code review
@@ -326,7 +328,7 @@ Commands                                                               *gh-comma
     -- close the Review panel
     vim.api.nvim_create_user_command("GHCloseReview", function () pr.close_pr_review(nil) end, {})
     -- preview the issue or pull request number under the cursor
-    vim.api.nvim_create_user_command("GHPreviewIssue", helpers.preview_issue_under_cursor, {})
+    vim.api.nvim_create_user_command("GHPreviewIssue", issues.preview_issue_under_cursor, {})
     -- Add a label to the currently opened pull request.
     vim.api.nvim_create_user_command("GHAddLabel", pr.add_label, {})
     -- If possible, open the node under the cursor in your web browser.
@@ -341,15 +343,19 @@ Conf                                                                     *gh-con
 Below is the default configuration.
 
 M.config = {
-    -- the icon set to use from litee.nvim. 
-    -- "nerd", "codicons", "default" 
-    icon_set    = "codicons",
     -- deprecated, around for compatability for now.
     jump_mode   = "invoking",
     -- remap the arrow keys to resize any litee.nvim windows.
     map_resize_keys = false,
     -- do not map any keys inside any gh.nvim buffers.
     disable_keymaps = false,
+    -- the icon set to use.
+    icon_set = "default",
+    -- any custom icons to use.
+    icon_set_custom = nil,
+    -- whether to register the @username and #issue_number omnifunc completion
+    -- in buffers which start with .git/
+    git_buffer_completion = true,
     -- defines keymaps in gh.nvim buffers.
     keymaps = {
         -- when inside a gh.nvim panel, this key will open a node if it has

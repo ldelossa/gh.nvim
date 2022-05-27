@@ -11,6 +11,9 @@ M.config = {
     icon_set = "default",
     -- any custom icons to use.
     icon_set_custom = nil,
+    -- whether to register the @username and #issue_number omnifunc completion
+    -- in buffers which start with .git/
+    git_buffer_completion = true,
     -- defines keymaps in gh.nvim buffers.
     keymaps = {
         -- when inside a gh.nvim panel, this key will open a node if it has

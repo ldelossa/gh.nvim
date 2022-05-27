@@ -3,7 +3,6 @@ local lib_tree      = require('litee.lib.tree')
 local lib_notify    = require('litee.lib.notify')
 local lib_panel     = require('litee.lib.panel')
 local lib_details   = require('litee.lib.details')
-local lib_icons     = require('litee.lib.icons')
 local lib_util      = require('litee.lib.util')
 
 local handlers      = require('litee.gh.pr.handlers')
@@ -14,49 +13,7 @@ local diff_view     = require('litee.gh.pr.diff_view')
 local thread_buffer = require('litee.gh.pr.thread_buffer')
 local pr_details    = require('litee.gh.pr.details')
 local marshaler     = require('litee.gh.pr.marshal')
-local config        = require('litee.gh.config').config
 local issues        = require('litee.gh.issues')
-
-function GH_completion(start, base)
-    if start == 1 then
-        local cursor = vim.api.nvim_win_get_cursor(0)
-        local line = vim.api.nvim_buf_get_lines(0, cursor[1]-1, cursor[1], true)
-        local at_idx = vim.fn.strridx(line[1], "@", cursor[2])
-        if at_idx ~= -1 then
-            return at_idx
-        end
-        local hash_idx = vim.fn.strridx(line[1], "#", cursor[2])
-        if hash_idx ~= -1 then
-            return hash_idx
-        end
-        return -3
-    end
-    if vim.fn.match(base, "@") ~= -1 then
-        local matches = {}
-        if s.pull_state["collaborators"] ~= nil then
-            for _, collaber in ipairs(s.pull_state["collaborators"]) do
-                if vim.fn.match("@"..collaber["login"], base) ~= -1 then
-                    table.insert(matches, {
-                        word = "@"..collaber["login"],
-                        menu = collaber["type"]
-                    })
-                end
-            end
-        end
-        return matches
-    elseif vim.fn.match(base, "#") ~= -1 then
-        local matches = {}
-        for _, iss in ipairs(s.pull_state["repo_issues"]) do
-            if vim.fn.match("#"..iss["number"], base) ~= -1 then
-                table.insert(matches, {
-                    word = "#"..iss["number"],
-                    menu = iss["title"]
-                })
-            end
-        end
-        return matches
-    end
-end
 
 local M = {}
 

@@ -132,7 +132,6 @@ function M.list_repo_issues_async(on_read)
 end
 
 function M.list_all_repo_issues_async(on_read)
-    lib_notify.notify_popup_with_timeout("Fetching all repo issues this could take a bit...", 7500, "info")
     local args = {"api", "-X", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/issues", "-q", '. | map(select(. | (has("pull_request") | not)))'}
     async_request(args, on_read, true)
 end
@@ -705,6 +704,18 @@ function M.get_git_protocol()
   end
 
   return protocol:gsub("[\r\n]", "")
+end
+
+function M.list_repo_contributors_async(on_read)
+    local args = {
+        'api',
+        '-X',
+        'GET',
+        '-F',
+        'per_page=100',
+        "/repos/{owner}/{repo}/contributors"
+    }
+    async_request(args, on_read, true)
 end
 
 -- on module load, immediately cache our user.
