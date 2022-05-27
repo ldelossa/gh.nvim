@@ -59,11 +59,6 @@ local pull_state_proto = {
     -- which are not currently in state and write their ids here. this serves
     -- as a way to indicate new items and paint a notification icon.
     notifications_by_id = nil,
-    -- a simple list of login names of collaborators for the repo associated with
-    -- this pull.
-    collaborators = nil,
-    -- first 100 repo issues, mostly for caching of completion.
-    repo_issues = nil,
     -- any checks to run for the current HEAD.
     check_runs = {}
 }
@@ -79,9 +74,6 @@ M.pull_state = nil
 
 -- last opened commit in by commits_handler
 M.last_opened_commit = nil
-
--- last opened file in the diff_view handler
-M.last_file_diff = nil
 
 function M.pull_is_valid()
     return vim.api.nvim_tabpage_is_valid(M.pull_state.tab)
@@ -132,6 +124,8 @@ function M.reset_pull_state()
         -- which are not currently in state and write their ids here. this serves
         -- as a way to indicate new items and paint a notification icon.
         notifications_by_id = nil,
+        -- any checks to run for the current HEAD.
+        check_runs = {}
     }
 end
 
@@ -213,23 +207,6 @@ function M.get_check_runs(cb)
         else
             cb()
         end
-    end)
-end
-
-function M.get_repo_issues_async(cb)
-    vim.schedule(function() vim.api.nvim_echo({{spinner() .. " fetching repo issues", "LTInfo"}}, false, {}) end)
-    local fence_id = add_fence("get_repo_issues_async")
-    ghcli.list_repo_issues_async(function(err, data)
-        if err then
-            vim.schedule(function () lib_notify.notify_popup_with_timeout("Failed to fetch repo issues: " .. err, 7500, "error") end)
-            return
-        end
-        if not check_fence("get_repo_issues_async", fence_id) then
-            cb()
-            return
-        end
-        M.pull_state.repo_issues = data
-        cb()
     end)
 end
 
@@ -474,27 +451,6 @@ function M.get_pull_files_async(pull_number, cb)
     end)
 end
 
-function M.get_collaborators_async(cb)
-    vim.schedule(function() vim.api.nvim_echo({{spinner() .. " fetching repository contributors", "LTInfo"}}, false, {}) end)
-    local fence_id = add_fence("get_collaborators_async")
-    ghcli.list_collaborators_async(function(err, data)
-        if err then
-            vim.schedule(function () lib_notify.notify_popup_with_timeout("Failed to fetch repository collaborators: " .. err, 7500, "error") end)
-            -- we will continue processing here, since gathering collaborators may require push access.
-            cb()
-            return
-        end
-
-        if not check_fence("get_collaborators_async", fence_id) then
-            cb()
-            return
-        end
-        M.pull_state.collaborators = {}
-        M.pull_state.collaborators = data
-        cb()
-    end)
-end
-
 function M.get_user_data_async(cb)
     vim.schedule(function() vim.api.nvim_echo({{spinner() .. " fetching pull request files", "LTInfo"}}, false, {}) end)
     local fence_id = add_fence("get_user_data_async")
@@ -565,13 +521,9 @@ function M.load_state_async(pull_number, on_load)
                     M.get_reviews_async(pull_number, M.pull_state.user["login"], function()
                         M.get_review_threads_async(pull_number, function()
                             M.get_commits_async(pull_number, function()
-                                M.get_collaborators_async(function ()
-                                    M.get_repo_issues_async(function ()
-                                        M.get_check_runs(
-                                            function () vim.schedule(on_load) end
-                                        )
-                                    end)
-                                end)
+                                M.get_check_runs(
+                                    function () vim.schedule(on_load) end
+                                )
                             end)
                         end)
                     end)

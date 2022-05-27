@@ -13,6 +13,8 @@ local pr                = require('litee.gh.pr')
 local pr_state          = require('litee.gh.pr.state')
 local pr_handlers       = require('litee.gh.pr.handlers')
 local issues            = require('litee.gh.issues')
+-- unused, but must init the global completion function.
+local completion    = require('litee.gh.completion')
 
 -- register_pr_component registers the "pr" litee component.
 --
@@ -187,6 +189,15 @@ local function merge_configs(user_config)
     end
 end
 
+local function register_git_buffer_completion()
+    vim.api.nvim_create_autocmd({"BufEnter"}, {
+        pattern = {"*.git/*"},
+        callback = function(args) 
+            vim.api.nvim_buf_set_option(args.buf, 'ofu', 'v:lua.GH_completion')
+        end
+    })
+end
+
 function M.setup(user_config)
     if not pcall(require, "litee.lib") then
         lib_notify.notify_popup_with_timeout("Cannot start litee-gh without the litee.lib library.", 1750, "error")
@@ -204,6 +215,11 @@ function M.setup(user_config)
     end
 
     c.set_icon_set()
+
+    -- register gh.nvim completion for .git/ buffers
+    if c.config.git_buffer_completion then
+        register_git_buffer_completion()
+    end
 
     register_pr_component()
     register_pr_files_component()

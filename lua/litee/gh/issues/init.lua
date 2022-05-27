@@ -74,6 +74,7 @@ function M.open_issue(args)
             return
     end
 
+    lib_notify.notify_popup_with_timeout("Fetching all repo issues this could take a bit...", 7500, "info")
     ghcli.list_all_repo_issues_async(function(err, data)
         if err then
             lib_notify.notify_popup_with_timeout("Failed to list issues: " .. err, 7500, "error")
