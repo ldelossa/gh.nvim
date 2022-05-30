@@ -249,7 +249,6 @@ function M.start_refresh_timer(now)
     if now then
         M.refresh()
     end
-    vim.schedule(function() vim.api.nvim_echo({{"[gh.nvim] started backround refresh with interval " .. 180000/1000/60 .. " minutes", "LTInfo"}}, false, {}) end)
     M.refresh_timer:start(180000, 180000, function()
         M.refresh()
     end)
