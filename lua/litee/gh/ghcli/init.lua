@@ -718,11 +718,15 @@ function M.list_repo_contributors_async(on_read)
     async_request(args, on_read, true)
 end
 
--- on module load, immediately cache our user.
-M.user = {}
-local function init()
-    M.user = M.get_user()
+M.user = nil
+
+-- like get_user but caches the results on the first request and returns the 
+-- cached user on subsequent.
+function M.get_cached_user()
+    if M.user == nil then
+        M.user = M.get_user()
+    end
+    return M.user
 end
-init()
 
 return M

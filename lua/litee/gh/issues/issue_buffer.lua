@@ -563,6 +563,11 @@ function M.reaction()
             end
         },
         function(item, idx)
+            local user = ghcli.get_cached_user()
+            if user == nil then
+                 lib_notify.notify_popup_with_timeout("Failed to get user.", 7500, "error")
+                 return
+            end
             -- get the reactions for this comment, search for our user name, if
             -- the reaction exists, delete it, otherwise, create it.
             local emoji_to_set = reactions.reaction_map[item]
@@ -575,7 +580,7 @@ function M.reaction()
                 end
                 local reaction_exists = false
                 for _, reaction in ipairs(data) do
-                    if reaction["user"]["login"] == ghcli.user["login"] then
+                    if reaction["user"]["login"] == user["login"] then
                         local emoji = reactions.reaction_lookup(reaction["content"])
                         if emoji == emoji_to_set then
                             reaction_exists = true
