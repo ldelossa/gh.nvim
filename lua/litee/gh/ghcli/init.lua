@@ -658,7 +658,16 @@ function M.add_label_async(number, label, on_read)
         "--add-label",
         label
     }
-    async_request(args, on_read)
+    -- eat the err code if its a json decode. 
+    -- TODO: refactor async_request to handle no-json decoding option
+    local swallow = function(err, data) 
+        if err == "json decode error" then
+            on_read(nil, data)
+        else
+            on_read(err, data)
+        end
+    end
+    async_request(args, swallow)
 end
 
 function M.remove_label_async(number, label, on_read)
@@ -669,7 +678,16 @@ function M.remove_label_async(number, label, on_read)
         "--remove-label",
         label
     }
-    async_request(args, on_read)
+    -- eat the err code if its a json decode. 
+    -- TODO: refactor async_request to handle no-json decoding option
+    local swallow = function(err, data) 
+        if err == "json decode error" then
+            on_read(nil, data)
+        else
+            on_read(err, data)
+        end
+    end
+    async_request(args, swallow)
 end
 
 function M.get_check_suites_async(commit_sha, on_read)

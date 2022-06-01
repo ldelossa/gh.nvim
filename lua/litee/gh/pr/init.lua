@@ -907,7 +907,7 @@ function M.add_label()
             {
                 prompt = "Select a label to add ",
                 format_item = function(item)
-                    return item["name"]
+                    return string.format("%s - %s", item["name"], item["description"])
                 end
             },
             function(choice)
@@ -920,6 +920,29 @@ function M.add_label()
                 end)
             end
         )end)
+    end)
+end
+
+function M.remove_label()
+    if s.pull_state == nil then
+        return
+    end
+    vim.ui.select(
+        s.pull_state.pr_raw["labels"],
+        {
+            prompt = "Select a label to remove ",
+            format_item = function(item)
+                return string.format("%s - %s", item["name"], item["description"])
+            end
+        },
+        function(choice)
+            ghcli.remove_label_async(s.pull_state["number"], choice["name"], function(err, data)
+                if err then
+                    vim.schedule(function () lib_notify.notify_popup_with_timeout("Failed to remove label: " .. err, 7500, "error") end)
+                    return
+                end
+                handlers.on_refresh()
+            end)
     end)
 end
 
