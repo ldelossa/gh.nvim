@@ -5,6 +5,7 @@ local lib_panel     = require('litee.lib.panel')
 local lib_details   = require('litee.lib.details')
 local lib_util      = require('litee.lib.util')
 
+local config        = require('litee.gh.config')
 local handlers      = require('litee.gh.pr.handlers')
 local ghcli         = require('litee.gh.ghcli')
 local gitcli        = require('litee.gh.gitcli')
@@ -134,6 +135,96 @@ function M.open_pull_by_number(number)
     end
 end
 
+-- todo: use the actual search API, this is a hold over for https://github.com/ldelossa/gh.nvim/issues/43
+function M.search_pulls()
+    lib_notify.notify_popup_with_timeout("Gathering all pull requests. This can take a bit...", 7500, "info")
+    ghcli.list_all_pulls_async(function(err, prs) 
+        if err then
+            lib_notify.notify_popup_with_timeout("Failed to list PRs: " .. err, 7500, "error")
+            return
+        end
+
+        vim.ui.select(
+            prs,
+            {
+                prompt = 'Select a pull request to open:',
+                format_item = function(pull)
+                    return string.format([[%s%d | %s "%s" | %s %s]], config.icon_set["Number"], pull["number"], config.icon_set["GitPullRequest"], pull["title"], config.icon_set["Account"], pull["user"]["login"])
+                end,
+            },
+            function(_, idx)
+                if idx == nil then
+                    return
+                end
+                if s.pull_state ~= nil and s.pull_state ~= nil then
+                    vim.ui.select(
+                        {"no", "yes"},
+                        {prompt = string.format('A pull request is already opened, close it and open pull #%s? ', prs[idx]["number"])},
+                        function(choice)
+                            if choice == "yes" then
+                                M.close_pull()
+                                handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                            end
+                        end
+                    )
+                else
+                    handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                end
+            end
+        )
+    end)
+end
+
+function M.open_pull_requested_review()
+    local user = ghcli.get_cached_user()
+    lib_notify.notify_popup_with_timeout("Searching for requested reviews. This can take a bit...", 7500, "info")
+
+    ghcli.list_all_pulls_async(function(err, prs) 
+        if err then
+            lib_notify.notify_popup_with_timeout("Failed to list PRs: " .. err, 7500, "error")
+            return
+        end
+
+        local requested_review_prs = {}
+        for _, pr in ipairs(prs) do
+            for _, requested in ipairs(pr["requested_reviewers"]) do
+                if requested["login"] == user["login"] then
+                    table.insert(requested_review_prs, pr)
+                end
+            end
+        end
+
+        vim.ui.select(
+            requested_review_prs,
+            {
+                prompt = 'Select a pull request to open:',
+                format_item = function(pull)
+                    return string.format([[%s%d | %s "%s" | %s %s]], config.icon_set["Number"], pull["number"], config.icon_set["GitPullRequest"], pull["title"], config.icon_set["Account"], pull["user"]["login"])
+                end,
+            },
+            function(_, idx)
+                if idx == nil then
+                    return
+                end
+                if s.pull_state ~= nil and s.pull_state ~= nil then
+                    vim.ui.select(
+                        {"no", "yes"},
+                        {prompt = string.format('A pull request is already opened, close it and open pull #%s? ', requested_review_prs[idx]["number"])},
+                        function(choice)
+                            if choice == "yes" then
+                                M.close_pull()
+                                handlers.pr_handler(requested_review_prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                            end
+                        end
+                    )
+                else
+                    handlers.pr_handler(requested_review_prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                end
+            end
+        )
+    end)
+end
+
 -- open_pull is the entry point for a new pull request and review session.
 --
 -- a `vim.ui.select` menu is presented to the user to pick a PR to open,
@@ -156,7 +247,7 @@ function M.open_pull(args)
         {
             prompt = 'Select a pull request to open:',
             format_item = function(pull)
-                return string.format([[%d |  "%s" |  %s]], pull["number"], pull["title"], pull["author"]["login"])
+                return string.format([[%s%d | %s "%s" | %s %s]], config.icon_set["Number"], pull["number"], config.icon_set["GitPullRequest"], pull["title"], config.icon_set["Account"], pull["author"]["login"])
             end,
         },
         function(_, idx)

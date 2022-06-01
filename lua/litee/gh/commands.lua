@@ -65,6 +65,10 @@ function M.setup()
     -- Open an issue, if a number is provided it will be opened directly, if not
     -- a vim.ui.select with all repo issues is opened for selection.
     vim.api.nvim_create_user_command("GHOpenIssue", issues.open_issue, {nargs="?"})
+    -- Open a PR you've been requested to review.
+    vim.api.nvim_create_user_command("GHRequestedReview", pr.open_pull_requested_review, {nargs="?"})
+    -- List all PRs for the repository for opening.
+    vim.api.nvim_create_user_command("GHSearchPRs", pr.search_pulls, {nargs="?"})
 end
 
 return M

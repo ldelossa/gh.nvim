@@ -165,8 +165,13 @@ function M.get_pull_async(pull_number, on_read)
 end
 
 function M.list_pulls_async(on_read)
-    local args = {"api", "-X", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/pulls/"}
+    local args = {"api", "-X", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/pulls"}
     async_request(args, on_read)
+end
+
+function M.list_all_pulls_async(on_read)
+    local args = {"api", "-X", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/pulls"}
+    async_request(args, on_read, true)
 end
 
 function M.update_issue_body_async(number, body, on_read)
