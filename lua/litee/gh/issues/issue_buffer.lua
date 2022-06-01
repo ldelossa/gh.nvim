@@ -116,11 +116,13 @@ local function _win_settings_on()
     vim.api.nvim_win_set_option(0, "showbreak", "│")
     vim.api.nvim_win_set_option(0, 'winhighlight', 'NonText:Normal')
     vim.api.nvim_win_set_option(0, 'wrap', true)
+    vim.api.nvim_win_set_option(0, 'colorcolumn', "0")
 end
 local function _win_settings_off()
     vim.api.nvim_win_set_option(0, "showbreak", "")
     vim.api.nvim_win_set_option(0, 'winhighlight', 'NonText:NonText')
     vim.api.nvim_win_set_option(0, 'wrap', true)
+    vim.api.nvim_win_set_option(0, 'colorcolumn', "0")
 end
 
 local function in_editable_area(state)
@@ -172,14 +174,6 @@ local function setup_buffer(number)
     vim.api.nvim_create_autocmd({"CursorMoved", "CursorMovedI"}, {
         buffer = buf,
         callback = function () in_editable_area(M.state_by_number[number]) end,
-    })
-    vim.api.nvim_create_autocmd({"BufEnter"}, {
-        buffer = buf,
-        callback = _win_settings_on,
-    })
-    vim.api.nvim_create_autocmd({"BufWinLeave"}, {
-        buffer = buf,
-        callback = _win_settings_off,
     })
     vim.api.nvim_create_autocmd({"CursorHold"}, {
         buffer = buf,

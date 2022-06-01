@@ -190,11 +190,15 @@ local function merge_configs(user_config)
 end
 
 local function register_git_buffer_completion()
-    vim.api.nvim_create_autocmd({"BufEnter"}, {
+    vim.api.nvim_create_autocmd({"CursorHold"}, {
         pattern = {"*.git/*"},
         callback = function(args) 
             vim.api.nvim_buf_set_option(args.buf, 'ofu', 'v:lua.GH_completion')
         end
+    })
+    vim.api.nvim_create_autocmd({"CursorHold"}, {
+        pattern = {"*.git/*"},
+        callback = issues.preview_issue_under_cursor
     })
 end
 

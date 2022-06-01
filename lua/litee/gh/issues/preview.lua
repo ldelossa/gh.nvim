@@ -45,6 +45,12 @@ function M.preview_issue(number)
         )
         local cur_win = vim.api.nvim_get_current_win()
         local win = vim.api.nvim_open_win(buf, false, popup_conf)
+
+        -- some win options for displaying the header info
+        vim.api.nvim_win_set_option(win, 'wrap', true)
+        vim.api.nvim_win_set_option(win, 'winhighlight', 'NonText:Normal')
+        vim.api.nvim_win_set_option(win, "showbreak", "│")
+
         local id = vim.api.nvim_create_autocmd({"CursorMoved"}, {
             buffer = vim.api.nvim_win_get_buf(cur_win),
             callback = function()
