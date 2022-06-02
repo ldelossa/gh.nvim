@@ -248,9 +248,6 @@ function M.on_refresh()
         organize_threads(state.threads)
     end
 
-    vim.api.nvim_win_set_buf(state.lwin, state.lbuf)
-    vim.api.nvim_win_set_buf(state.rwin, state.rbuf)
-
     -- paint the necessary signs
     diffsplit_sign_place()
 
