@@ -522,7 +522,10 @@ function M.load_state_async(pull_number, on_load)
                         M.get_review_threads_async(pull_number, function()
                             M.get_commits_async(pull_number, function()
                                 M.get_check_runs(
-                                    function () vim.schedule(on_load) end
+                                    function () 
+                                        vim.schedule(function() vim.api.nvim_echo({{spinner() .. " successfully fetched all PR state.", "LTSuccess"}}, false, {}) end)
+                                        vim.schedule(on_load) 
+                                    end
                                 )
                             end)
                         end)

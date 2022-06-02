@@ -27,45 +27,49 @@ local function init()
     init_done = true
 end
 
-local state = {
-    -- the file that is currently being diffed
-    file = nil,
-    commit = nil,
-    -- the left window id of the split
-    lwin = nil,
-    -- the right window id of the split
-    rwin = nil,
-    -- the left buffer id of the split
-    lbuf = nil,
-    -- the right buffer id of the split
-    rbuf = nil,
-    -- the threads which belong to this file
-    threads = nil,
-    -- a map between line numbers in the diff and one or more threads.
-    --
-    -- map has the following structure
-    -- {
-    --   "RIGHT" = {
-    --      linenr = {threads},
-    --      linenr = {threads}...
-    --   },
-    --   "LEFT" = {
-    --      ...
-    --   }
-    -- }
-    threads_by_line = nil,
-    -- displayed thread table {
-    --   side,
-    --   win,
-    --   buf,
-    --   linenr,
-    --   index,
-    --   thread_id,
-    -- }
-    displayed_thread = nil,
-    lines_to_diff_pos = nil,
-    n_of = nil
-}
+local state = nil
+
+function reset_state() 
+    state = {
+        -- the file that is currently being diffed
+        file = nil,
+        commit = nil,
+        -- the left window id of the split
+        lwin = nil,
+        -- the right window id of the split
+        rwin = nil,
+        -- the left buffer id of the split
+        lbuf = nil,
+        -- the right buffer id of the split
+        rbuf = nil,
+        -- the threads which belong to this file
+        threads = nil,
+        -- a map between line numbers in the diff and one or more threads.
+        --
+        -- map has the following structure
+        -- {
+        --   "RIGHT" = {
+        --      linenr = {threads},
+        --      linenr = {threads}...
+        --   },
+        --   "LEFT" = {
+        --      ...
+        --   }
+        -- }
+        threads_by_line = nil,
+        -- displayed thread table {
+        --   side,
+        --   win,
+        --   buf,
+        --   linenr,
+        --   index,
+        --   thread_id,
+        -- }
+        displayed_thread = nil,
+        lines_to_diff_pos = nil,
+        n_of = nil
+    }
+end
 
 function M.close()
     if vim.api.nvim_win_is_valid(state.lwin) then
@@ -191,6 +195,10 @@ local function organize_threads(threads)
         RIGHT = {},
         LEFT = {}
     }
+
+    if threads == nil then
+        return
+    end
 
     for _, thread in ipairs(threads) do
         local line = nil
@@ -318,6 +326,7 @@ end
 
 -- the commmit object passed in is one which is returned by ghcli.get_commit().
 function M.open_diffsplit(commit, file, thread, compare_base)
+    reset_state()
     -- setup the current tabpage for a diff,
     -- when we return from this we'll be inside a right hand diff window
     setup_diff_ui()
@@ -333,9 +342,7 @@ function M.open_diffsplit(commit, file, thread, compare_base)
 
     -- organize our threads by left,right and line number, fills in
     -- state.threads_by_line
-    if state.threads ~= nil then
-        organize_threads(state.threads)
-    end
+    organize_threads(state.threads)
 
     -- map the file's hunk headers to buffer lines
     map_chunks_to_lines(file)
