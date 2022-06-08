@@ -66,7 +66,9 @@ function M.setup()
     -- a vim.ui.select with all repo issues is opened for selection.
     vim.api.nvim_create_user_command("GHOpenIssue", issues.open_issue, {nargs="?"})
     -- Open a PR you've been requested to review.
-    vim.api.nvim_create_user_command("GHRequestedReview", pr.open_pull_requested_review, {nargs="?"})
+    vim.api.nvim_create_user_command("GHRequestedReview", pr.open_pull_requested_review_user, {})
+    -- Open a PR in the open state which you have reviewed.
+    vim.api.nvim_create_user_command("GHReviewed", pr.open_pull_request_reviewed_by_user, {})
     -- List all PRs for the repository for opening.
     vim.api.nvim_create_user_command("GHSearchPRs", pr.search_pulls, {nargs="?"})
 end

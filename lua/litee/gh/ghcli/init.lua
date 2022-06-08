@@ -174,6 +174,29 @@ function M.list_all_pulls_async(on_read)
     async_request(args, on_read, true)
 end
 
+function M.list_requested_reviews(owner, repo, on_read)
+    local q = string.format("q=repo:%s/%s is:pr is:open review-requested:@me", owner, repo)
+    local args = {"api", "-X", "GET", "-F", "per_page=100", "search/issues", "-f", q}
+    async_request(args, on_read, true)
+end
+
+function M.list_requested_reviews_user(owner, repo, on_read)
+    local q = string.format("q=repo:%s/%s is:pr is:open user-review-requested:@me", owner, repo)
+    local args = {"api", "-X", "GET", "-F", "per_page=100", "search/issues", "-f", q}
+    async_request(args, on_read, true)
+end
+
+function M.list_pulls_reviewed_by_user(owner, repo, on_read)
+    local q = string.format("q=repo:%s/%s is:pr is:open reviewed-by:@me", owner, repo)
+    local args = {"api", "-X", "GET", "-F", "per_page=100", "search/issues", "-f", q}
+    async_request(args, on_read, true)
+end
+
+function M.get_repo_name_owner()
+    local cmd = [[gh repo view --json name,owner]]
+    return gh_exec(cmd)
+end
+
 function M.update_issue_body_async(number, body, on_read)
     local args = {
         'api',

@@ -164,6 +164,10 @@ local function setup_buffer()
         buffer = state.buf,
         callback = in_editable_area,
     })
+    vim.api.nvim_create_autocmd({"BufEnter"}, {
+        buffer = state.buf,
+        callback = require('litee.lib.util.window').set_tree_highlights,
+    })
 end
 
 local function parse_comment_body(body, left_sign)

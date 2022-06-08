@@ -280,7 +280,6 @@ local function map_chunks_to_lines(file)
     }
     for i, line in ipairs(patch_lines) do
         if vim.fn.match(line, "^@@") ~= -1 then
-
             local function parse(side, diff_stat)
                 if i > 1 then
                     -- chunk header counts in diff position counts

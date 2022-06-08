@@ -179,6 +179,10 @@ local function setup_buffer(number)
         buffer = buf,
         callback = callbacks["preview_cb"]
     })
+    vim.api.nvim_create_autocmd({"BufEnter"}, {
+        buffer = buf,
+        callback = require('litee.lib.util.window').set_tree_highlights,
+    })
     return buf
 end
 

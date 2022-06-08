@@ -175,27 +175,21 @@ function M.search_pulls()
     end)
 end
 
-function M.open_pull_requested_review()
-    local user = ghcli.get_cached_user()
-    lib_notify.notify_popup_with_timeout("Searching for requested reviews. This can take a bit...", 7500, "info")
+function M.open_pull_request_reviewed_by_user()
+    local repo = ghcli.get_repo_name_owner()
+    lib_notify.notify_popup_with_timeout("Searching for requested reviews.", 7500, "info")
 
-    ghcli.list_all_pulls_async(function(err, prs) 
+    ghcli.list_pulls_reviewed_by_user(repo["owner"]["login"], repo["name"], function(err, prs) 
         if err then
             lib_notify.notify_popup_with_timeout("Failed to list PRs: " .. err, 7500, "error")
             return
         end
-
-        local requested_review_prs = {}
-        for _, pr in ipairs(prs) do
-            for _, requested in ipairs(pr["requested_reviewers"]) do
-                if requested["login"] == user["login"] then
-                    table.insert(requested_review_prs, pr)
-                end
-            end
-        end
-
+        prs = prs["items"]
+        table.sort(prs, function(a,b)
+            return a["updated_at"] > b["updated_at"]
+        end)
         vim.ui.select(
-            requested_review_prs,
+            prs,
             {
                 prompt = 'Select a pull request to open:',
                 format_item = function(pull)
@@ -209,16 +203,60 @@ function M.open_pull_requested_review()
                 if s.pull_state ~= nil and s.pull_state ~= nil then
                     vim.ui.select(
                         {"no", "yes"},
-                        {prompt = string.format('A pull request is already opened, close it and open pull #%s? ', requested_review_prs[idx]["number"])},
+                        {prompt = string.format('A pull request is already opened, close it and open pull #%s? ', prs[idx]["number"])},
                         function(choice)
                             if choice == "yes" then
                                 M.close_pull()
-                                handlers.pr_handler(requested_review_prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                                handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
                             end
                         end
                     )
                 else
-                    handlers.pr_handler(requested_review_prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                    handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                end
+            end
+        )
+    end)
+end
+
+function M.open_pull_requested_review_user()
+    local repo = ghcli.get_repo_name_owner()
+    lib_notify.notify_popup_with_timeout("Searching for requested reviews.", 7500, "info")
+
+    ghcli.list_requested_reviews_user(repo["owner"]["login"], repo["name"], function(err, prs) 
+        if err then
+            lib_notify.notify_popup_with_timeout("Failed to list PRs: " .. err, 7500, "error")
+            return
+        end
+        prs = prs["items"]
+        table.sort(prs, function(a,b)
+            return a["updated_at"] > b["updated_at"]
+        end)
+        vim.ui.select(
+            prs,
+            {
+                prompt = 'Select a pull request to open:',
+                format_item = function(pull)
+                    return string.format([[%s%d | %s "%s" | %s %s]], config.icon_set["Number"], pull["number"], config.icon_set["GitPullRequest"], pull["title"], config.icon_set["Account"], pull["user"]["login"])
+                end,
+            },
+            function(_, idx)
+                if idx == nil then
+                    return
+                end
+                if s.pull_state ~= nil and s.pull_state ~= nil then
+                    vim.ui.select(
+                        {"no", "yes"},
+                        {prompt = string.format('A pull request is already opened, close it and open pull #%s? ', prs[idx]["number"])},
+                        function(choice)
+                            if choice == "yes" then
+                                M.close_pull()
+                                handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                            end
+                        end
+                    )
+                else
+                    handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
                 end
             end
         )
