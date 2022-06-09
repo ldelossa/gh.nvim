@@ -99,6 +99,41 @@ function M.open_issue(args)
     end)
 end
 
+function M.search_issues()
+    vim.ui.input(
+        {prompt = 'Enter a query string or leave blank for all issues: '},
+        function(input) 
+            local repo = ghcli.get_repo_name_owner()
+            lib_notify.notify_popup_with_timeout("Searching for issues, this may take a bit...", 7500, "info")
+            ghcli.search_issues(repo["owner"]["login"], repo["name"], input, function(err, issues) 
+                if err then
+                    lib_notify.notify_popup_with_timeout("Failed to list issues: " .. err, 7500, "error")
+                    return
+                end
+                table.sort(issues, function(a,b)
+                    return a["updated_at"] > b["updated_at"]
+                end)
+                vim.ui.select(
+                    issues,
+                    {
+                        prompt = 'Select an issue to open: ',
+                        format_item = function(issue)
+                            return string.format([[%s%d | %s "%s" | %s %s]], config.icon_set["Number"], issue["number"], config.icon_set["GitIssue"], issue["title"], config.icon_set["Account"], issue["user"]["login"])
+                        end,
+                    },
+                    function(_, idx)
+                        if idx == nil then
+                            return
+                        end
+                        M.open_issue_by_number(issues[idx]["number"])
+                    end
+                )
+            end)
+        end
+    )
+end
+
+
 function M.on_refresh()
     issue_buffer.on_refresh()
 end
