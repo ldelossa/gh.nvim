@@ -6,6 +6,11 @@ local M = {}
 local function json_decode_safe(output)
     local success, decoded = pcall(function () return vim.json.decode(output) end)
     if success then
+        -- a bit of a hack, but search API returns the items in a wrapper, we'll
+        -- extract it out on json decode so pagination function works correctly.
+        if decoded["items"] ~= nil then
+            decoded = decoded["items"]
+        end
         return decoded
     else
         return {message =  "json decode error"}
@@ -91,7 +96,6 @@ local function async_request(args, on_read, paginate, page, paged_data)
                     table.insert(paged_data, i)
                 end
             end
-
             if paginate then
                 if #data > 0 then
                     -- paginate
@@ -157,6 +161,27 @@ end
 function M.list_pulls()
     local cmd = [[gh pr list --limit 100 --json "number,title,author"]]
     return gh_exec(cmd)
+end
+
+-- search_pulls accepts a query string which is appended to a hard coded query
+-- string of "q=repo:{owner}/{name} type=pr".
+function M.search_pulls(owner, name, qq, on_read)
+    local q = string.format("q=repo:%s/%s type:pr ", owner, name)
+    if qq ~= nil then
+        q  = q .. qq
+    end
+    local args = {"api", "-X", "GET", "-F", "per_page=100", "search/issues", "-f", q}
+    async_request(args, on_read, true)
+end
+
+-- like search_pulls but for issues.
+function M.search_issues(owner, name, qq, on_read)
+    local q = string.format("q=type:issue ", owner, name)
+    if qq ~= nil then
+        q  = q .. qq
+    end
+    local args = {"api", "-X", "GET", "-F", "per_page=100", "search/issues", "-f", q}
+    async_request(args, on_read, true)
 end
 
 function M.get_pull_async(pull_number, on_read)

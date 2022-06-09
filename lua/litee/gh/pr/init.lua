@@ -135,44 +135,51 @@ function M.open_pull_by_number(number)
     end
 end
 
--- todo: use the actual search API, this is a hold over for https://github.com/ldelossa/gh.nvim/issues/43
 function M.search_pulls()
-    lib_notify.notify_popup_with_timeout("Gathering all pull requests. This can take a bit...", 7500, "info")
-    ghcli.list_all_pulls_async(function(err, prs) 
-        if err then
-            lib_notify.notify_popup_with_timeout("Failed to list PRs: " .. err, 7500, "error")
-            return
-        end
-
-        vim.ui.select(
-            prs,
-            {
-                prompt = 'Select a pull request to open:',
-                format_item = function(pull)
-                    return string.format([[%s%d | %s "%s" | %s %s]], config.icon_set["Number"], pull["number"], config.icon_set["GitPullRequest"], pull["title"], config.icon_set["Account"], pull["user"]["login"])
-                end,
-            },
-            function(_, idx)
-                if idx == nil then
+    vim.ui.input(
+        {prompt = 'Enter a query string or leave blank for all PRs: '},
+        function(input) 
+            local repo = ghcli.get_repo_name_owner()
+            lib_notify.notify_popup_with_timeout("Searching for pull requests, this may take a bit...", 7500, "info")
+            ghcli.search_pulls(repo["owner"]["login"], repo["name"], input, function(err, prs) 
+                if err then
+                    lib_notify.notify_popup_with_timeout("Failed to list PRs: " .. err, 7500, "error")
                     return
                 end
-                if s.pull_state ~= nil and s.pull_state ~= nil then
-                    vim.ui.select(
-                        {"no", "yes"},
-                        {prompt = string.format('A pull request is already opened, close it and open pull #%s? ', prs[idx]["number"])},
-                        function(choice)
-                            if choice == "yes" then
-                                M.close_pull()
-                                handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
-                            end
+                table.sort(prs, function(a,b)
+                    return a["updated_at"] > b["updated_at"]
+                end)
+                vim.ui.select(
+                    prs,
+                    {
+                        prompt = 'Select a pull request to open: ',
+                        format_item = function(pull)
+                            return string.format([[%s%d | %s "%s" | %s %s]], config.icon_set["Number"], pull["number"], config.icon_set["GitPullRequest"], pull["title"], config.icon_set["Account"], pull["user"]["login"])
+                        end,
+                    },
+                    function(_, idx)
+                        if idx == nil then
+                            return
                         end
-                    )
-                else
-                    handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
-                end
-            end
-        )
-    end)
+                        if s.pull_state ~= nil and s.pull_state ~= nil then
+                            vim.ui.select(
+                                {"no", "yes"},
+                                {prompt = string.format('A pull request is already opened, close it and open pull #%s? ', prs[idx]["number"])},
+                                function(choice)
+                                    if choice == "yes" then
+                                        M.close_pull()
+                                        handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                                    end
+                                end
+                            )
+                        else
+                            handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                        end
+                    end
+                )
+            end)
+        end
+    )
 end
 
 function M.open_pull_request_reviewed_by_user()

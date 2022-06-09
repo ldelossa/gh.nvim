@@ -69,8 +69,14 @@ function M.setup()
     vim.api.nvim_create_user_command("GHRequestedReview", pr.open_pull_requested_review_user, {})
     -- Open a PR in the open state which you have reviewed.
     vim.api.nvim_create_user_command("GHReviewed", pr.open_pull_request_reviewed_by_user, {})
-    -- List all PRs for the repository for opening.
-    vim.api.nvim_create_user_command("GHSearchPRs", pr.search_pulls, {nargs="?"})
+    -- Search the current repo's PR's utilizing GH search queries. 
+    -- Searches are always constrained to the repository Neovim is opened to.
+    -- See: https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests
+    vim.api.nvim_create_user_command("GHSearchPRs", pr.search_pulls, {})
+    -- Search the current repo's PR's utilizing GH search queries. 
+    -- Searches are always constrained to the repository Neovim is opened to.
+    -- See: https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests
+    vim.api.nvim_create_user_command("GHSearchIssues", issues.search_issues, {})
 end
 
 return M
