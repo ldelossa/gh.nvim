@@ -191,7 +191,6 @@ function M.open_pull_request_reviewed_by_user()
             lib_notify.notify_popup_with_timeout("Failed to list PRs: " .. err, 7500, "error")
             return
         end
-        prs = prs["items"]
         table.sort(prs, function(a,b)
             return a["updated_at"] > b["updated_at"]
         end)
@@ -235,7 +234,6 @@ function M.open_pull_requested_review_user()
             lib_notify.notify_popup_with_timeout("Failed to list PRs: " .. err, 7500, "error")
             return
         end
-        prs = prs["items"]
         table.sort(prs, function(a,b)
             return a["updated_at"] > b["updated_at"]
         end)
