@@ -755,7 +755,7 @@ function M.submit_review()
             action = idx
             vim.ui.select(
                 {"yes", "no"},
-                {prompt="Include a comment with this review?"},
+                {prompt="Include a comment with this review? "},
                 function(_, comment)
                     if comment == 1 then
                         vim.ui.input(
@@ -793,7 +793,7 @@ function M.immediately_approve_review()
 
     vim.ui.select(
         {"yes", "no"},
-        {prompt="Include a comment with this review?"},
+        {prompt="Include a comment with this review? "},
         function(_, comment)
             if comment == 1 then
                 vim.ui.input(

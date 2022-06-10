@@ -313,6 +313,8 @@ Commands                                                               *gh-comma
     vim.api.nvim_create_user_command("GHSubmitReview", pr.submit_review, {})
     -- delete the current code review
     vim.api.nvim_create_user_command("GHDeleteReview", pr.delete_review, {})
+    -- a convenience function, immediately approve the pull request with an optional comment.
+    vim.api.nvim_create_user_command("GHApproveReview", pr.immediately_approve_review, {})
     -- open the main Pull Request details convo buffer.
     vim.api.nvim_create_user_command("GHPRDetails", pr.open_pr_buffer, {})
     -- when cursor is on a commented line of a diff view, toggle the convo buffer.
@@ -331,11 +333,25 @@ Commands                                                               *gh-comma
     vim.api.nvim_create_user_command("GHPreviewIssue", issues.preview_issue_under_cursor, {})
     -- Add a label to the currently opened pull request.
     vim.api.nvim_create_user_command("GHAddLabel", pr.add_label, {})
+    -- Remove a label from the currently opened pull request.
+    vim.api.nvim_create_user_command("GHRemoveLabel", pr.remove_label, {})
     -- If possible, open the node under the cursor in your web browser.
     vim.api.nvim_create_user_command("GHViewWeb",  pr.open_node_url, {})
     -- Open an issue, if a number is provided it will be opened directly, if not
     -- a vim.ui.select with all repo issues is opened for selection.
     vim.api.nvim_create_user_command("GHOpenIssue", issues.open_issue, {nargs="?"})
+    -- Open a PR you've been requested to review.
+    vim.api.nvim_create_user_command("GHRequestedReview", pr.open_pull_requested_review_user, {})
+    -- Open a PR in the open state which you have reviewed.
+    vim.api.nvim_create_user_command("GHReviewed", pr.open_pull_request_reviewed_by_user, {})
+    -- Search the current repo's PR's utilizing GH search queries. 
+    -- Searches are always constrained to the repository Neovim is opened to.
+    -- See: https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests
+    vim.api.nvim_create_user_command("GHSearchPRs", pr.search_pulls, {})
+    -- Search the current repo's PR's utilizing GH search queries. 
+    -- Searches are always constrained to the repository Neovim is opened to.
+    -- See: https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests
+    vim.api.nvim_create_user_command("GHSearchIssues", issues.search_issues, {})
 
 ====================================================================================
 Conf                                                                     *gh-config*
