@@ -483,6 +483,7 @@ function M.create_comment(pull_number, commit_sha, path, position, side, line, b
         line,
         body
     )
+    print(cmd)
     local out = gh_exec(cmd)
     if out == nil then
         return nil

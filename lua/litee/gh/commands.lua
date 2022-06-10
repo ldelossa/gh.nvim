@@ -40,6 +40,8 @@ function M.setup()
     vim.api.nvim_create_user_command("GHSubmitReview", pr.submit_review, {})
     -- delete the current code review
     vim.api.nvim_create_user_command("GHDeleteReview", pr.delete_review, {})
+    -- a convenience function, immediately approve the pull request with an optional comment.
+    vim.api.nvim_create_user_command("GHApproveReview", pr.immediately_approve_review, {})
     -- open the main Pull Request details convo buffer.
     vim.api.nvim_create_user_command("GHPRDetails", pr.open_pr_buffer, {})
     -- when cursor is on a commented line of a diff view, toggle the convo buffer.

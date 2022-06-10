@@ -731,7 +731,7 @@ function M.submit_review()
 
     local action = nil
 
-    function cb(action, body)
+    local function cb(action, body)
         local actions = {
             'APPROVE',
             'REQUEST_CHANGES',
@@ -770,6 +770,43 @@ function M.submit_review()
                 end
             )
         end)
+end
+
+function M.immediately_approve_review()
+    if s.pull_state == nil then
+        lib_notify.notify_popup_with_timeout("Must open a pull request before starting a review.", 7500, "error")
+        return
+    end
+    local review = ghcli.create_review(s.pull_state.number, s.pull_state.head)
+
+    local function cb(body)
+        if body ~= nil then
+            body = vim.fn.shellescape(body)
+        end
+        local out = ghcli.submit_review(s.pull_state["number"], review["id"], body, "APPROVE")
+        if out == nil then
+            lib_notify.notify_popup_with_timeout("Failed to approve review", 7500, "error")
+            return
+        end
+        vim.cmd("GHRefreshPR")
+    end
+
+    vim.ui.select(
+        {"yes", "no"},
+        {prompt="Include a comment with this review?"},
+        function(_, comment)
+            if comment == 1 then
+                vim.ui.input(
+                    {prompt = "Enter review submit comment: "},
+                    function(input)
+                        cb(input)
+                    end
+                )
+            else
+                cb(nil)
+            end
+        end
+    )
 end
 
 function M.test_thread()
