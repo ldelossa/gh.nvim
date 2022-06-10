@@ -13,6 +13,7 @@ local pr                = require('litee.gh.pr')
 local pr_state          = require('litee.gh.pr.state')
 local pr_handlers       = require('litee.gh.pr.handlers')
 local issues            = require('litee.gh.issues')
+local noti              = require('litee.gh.notifications')
 -- unused, but must init the global completion function.
 local completion    = require('litee.gh.completion')
 
@@ -235,10 +236,10 @@ function M.refresh()
     if pr_state.pull_state ~= nil then
         -- will refresh any open issues too
         pr_handlers.on_refresh()
-        return
     else
         issues.on_refresh()
     end
+    noti.on_refresh()
 end
 
 -- refresh all data

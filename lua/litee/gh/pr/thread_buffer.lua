@@ -794,8 +794,8 @@ end
 
 -- comment_actions displays a list of actions for a given comment.
 function M.comment_actions()
-    comment = comment_under_cursor()
-    if comment == nil then
+    notification = comment_under_cursor()
+    if notification == nil then
         return
     end
     vim.ui.select(
