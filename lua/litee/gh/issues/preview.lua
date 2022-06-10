@@ -100,6 +100,7 @@ function M.render_issue(issue)
     end
     table.insert(buffer_lines, symbols.left)
     table.insert(buffer_lines, symbols.bottom)
+    table.insert(buffer_lines, "")
 
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
     vim.api.nvim_buf_set_lines(buf, 0, #buffer_lines, false, buffer_lines)

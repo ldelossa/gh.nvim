@@ -129,9 +129,19 @@ local function on_tab_close()
 end
 
 function M.open_pull_by_number(number)
-    if number ~= nil then
+    if s.pull_state ~= nil and s.pull_state ~= nil then
+        vim.ui.select(
+            {"no", "yes"},
+            {prompt = string.format('A pull request is already opened, close it and open pull #%s? ', number)},
+            function(choice)
+                if choice == "yes" then
+                    M.close_pull()
+                    handlers.pr_handler(number, false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                end
+            end
+        )
+    else
         handlers.pr_handler(number, false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
-        return
     end
 end
 
@@ -382,60 +392,62 @@ function M.clean()
 end
 
 -- TODO add other stuff that needs to be done on pr commits
-function M.close_pr_commits(ctx)
-    if ctx == nil then
-         ctx = ui_req_ctx()
-    end
-    if ctx.state == nil or ctx.state["pr_files"] == nil then
+function M.close_pr_commits()
+    if s.pull_state == nil then
         return
     end
-    if ctx.state["pr_files"].win ~= nil then
-        if vim.api.nvim_win_is_valid(ctx.state["pr_files"].win) then
-            vim.api.nvim_win_close(ctx.state["pr_files"].win, true)
+    local state = lib_state.get_state(s.pull_state.tab)
+    if state == nil or state["pr_files"] == nil then
+        return
+    end
+    if state["pr_files"].win ~= nil then
+        if vim.api.nvim_win_is_valid(state["pr_files"].win) then
+            vim.api.nvim_win_close(state["pr_files"].win, true)
         end
     end
-    if ctx.state["pr_files"].buf ~= nil then
-        if vim.api.nvim_buf_is_valid(ctx.state["pr_files"].buf) then
-            vim.api.nvim_buf_delete(ctx.state["pr_files"].buf, {force = true})
+    if state["pr_files"].buf ~= nil then
+        if vim.api.nvim_buf_is_valid(state["pr_files"].buf) then
+            vim.api.nvim_buf_delete(state["pr_files"].buf, {force = true})
         end
     end
-    if ctx.state["pr_files"].tree ~= nil then
-        lib_tree.remove_tree(ctx.state["pr_files"].tree)
+    if state["pr_files"].tree ~= nil then
+        lib_tree.remove_tree(state["pr_files"].tree)
     end
-    lib_state.put_component_state(ctx.tab, "pr_files", nil)
+    lib_state.put_component_state(s.pull_state.tab, "pr_files", nil)
     M.clean()
 end
 
 -- TODO add other stuff that needs to be done on pr reviews
-function M.close_pr_review(ctx)
-    if ctx == nil then
-         ctx = ui_req_ctx()
-    end
-    if ctx.state == nil or ctx.state["pr_review"] == nil then
+function M.close_pr_review()
+    if s.pull_state == nil then
         return
     end
-    if ctx.state["pr_review"].win ~= nil then
-        if vim.api.nvim_win_is_valid(ctx.state["pr_review"].win) then
-            vim.api.nvim_win_close(ctx.state["pr_review"].win, true)
+    local state = lib_state.get_state(s.pull_state.tab)
+    if state == nil or state["pr_review"] == nil then
+        return
+    end
+    if state["pr_review"].win ~= nil then
+        if vim.api.nvim_win_is_valid(state["pr_review"].win) then
+            vim.api.nvim_win_close(state["pr_review"].win, true)
         end
     end
-    if ctx.state["pr_review"].buf ~= nil then
-        if vim.api.nvim_buf_is_valid(ctx.state["pr_review"].buf) then
-            vim.api.nvim_buf_delete(ctx.state["pr_review"].buf, {force = true})
+    if state["pr_review"].buf ~= nil then
+        if vim.api.nvim_buf_is_valid(state["pr_review"].buf) then
+            vim.api.nvim_buf_delete(state["pr_review"].buf, {force = true})
         end
     end
-    if ctx.state["pr_review"].tree ~= nil then
-        lib_tree.remove_tree(ctx.state["pr_review"].tree)
+    if state["pr_review"].tree ~= nil then
+        lib_tree.remove_tree(state["pr_review"].tree)
     end
-    lib_state.put_component_state(ctx.tab, "pr_review", nil)
+    lib_state.put_component_state(s.pull_state.tab, "pr_review", nil)
 end
 
 -- TODO add other stuff that needs to be done on pr close
 function M.close_pull()
-    local ctx = ui_req_ctx()
     if s.pull_state == nil then
         return
     end
+    local state = lib_state.get_state(s.pull_state.tab)
 
     -- put us in a new tab so we can close windows if we don't have one to change
     -- to.
@@ -451,34 +463,35 @@ function M.close_pull()
         vim.cmd("tabnew")
     end
 
+
     -- dump all our state
-    if ctx.state["pr"].win ~= nil then
-        if vim.api.nvim_win_is_valid(ctx.state["pr"].win) then
-            vim.api.nvim_win_close(ctx.state["pr"].win, true)
+    if state["pr"].win ~= nil then
+        if vim.api.nvim_win_is_valid(state["pr"].win) then
+            vim.api.nvim_win_close(state["pr"].win, true)
         end
     end
-    if ctx.state["pr"].buf ~= nil then
-        if vim.api.nvim_buf_is_valid(ctx.state["pr"].buf) then
-            vim.api.nvim_buf_delete(ctx.state["pr"].buf, {force = true})
+    if state["pr"].buf ~= nil then
+        if vim.api.nvim_buf_is_valid(state["pr"].buf) then
+            vim.api.nvim_buf_delete(state["pr"].buf, {force = true})
         end
     end
-    if ctx.state["pr"].tree ~= nil then
-        lib_tree.remove_tree(ctx.state["pr"].tree)
+    if state["pr"].tree ~= nil then
+        lib_tree.remove_tree(state["pr"].tree)
     end
 
     -- pass in our ctx, since we changed tab pages, current tab from ctx wont
     -- work.
-    M.close_pr_commits(ctx)
-    M.close_pr_review(ctx)
+    M.close_pr_commits()
+    M.close_pr_review()
 
     -- rip down our pull request tab
     vim.api.nvim_set_current_tabpage(s.pull_state.tab)
     vim.cmd("tabclose")
 
-    -- nil out the pull state
-    s.pull_state = nil
+    lib_state.put_component_state(s.pull_state.tab, "pr", nil)
 
-    lib_state.put_component_state(ctx.tab, "pr", nil)
+    -- nil our the pull state
+    s.pull_state = nil
 end
 
 

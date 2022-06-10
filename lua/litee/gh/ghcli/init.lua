@@ -790,6 +790,28 @@ function M.list_repo_contributors_async(on_read)
     async_request(args, on_read, true)
 end
 
+function M.list_repo_notifications(on_read)
+    local args = {
+        'api',
+        '-X',
+        'GET',
+        '-F',
+        'per_page=100',
+        "/repos/{owner}/{repo}/notifications"
+    }
+    async_request(args, on_read, true)
+end
+
+function M.set_notification_read(thread_id)
+    local cmd = [[gh api -X PATCH /notifications/threads/]] .. thread_id
+    return gh_exec(cmd, true)
+end
+
+function M.set_notification_ignored(thread_id)
+    local cmd = [[gh api -X PUT -F "ignored=true" /notifications/threads/]] .. thread_id .. "/subscription"
+    return gh_exec(cmd, true)
+end
+
 M.user = nil
 
 -- like get_user but caches the results on the first request and returns the 

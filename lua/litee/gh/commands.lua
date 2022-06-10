@@ -1,5 +1,6 @@
 local pr = require('litee.gh.pr')
 local dv = require('litee.gh.pr.diff_view')
+local noti = require('litee.gh.notifications')
 local pr_handlers = require('litee.gh.pr.handlers')
 local issues = require('litee.gh.issues')
 
@@ -34,6 +35,8 @@ function M.setup()
     vim.api.nvim_create_user_command("GHRefreshComments", pr_handlers.refresh_comments, {})
     -- refresh any open issue buffers, if a PR is opened, this will be ran as part of "GHRefreshPR"
     vim.api.nvim_create_user_command("GHRefreshIssues", issues.on_refresh, {})
+    -- refresh the notifications buffer if it is open.
+    vim.api.nvim_create_user_command("GHRefreshNotifications", noti.on_refresh, {})
     -- start a code review
     vim.api.nvim_create_user_command("GHStartReview", pr.start_review, {})
     -- submit all pending comments in a code review
@@ -79,6 +82,8 @@ function M.setup()
     -- Searches are always constrained to the repository Neovim is opened to.
     -- See: https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests
     vim.api.nvim_create_user_command("GHSearchIssues", issues.search_issues, {})
+    -- 
+    vim.api.nvim_create_user_command("GHNotifications", noti.open_notifications, {})
 end
 
 return M
