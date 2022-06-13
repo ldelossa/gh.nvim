@@ -802,6 +802,20 @@ function M.list_repo_notifications(on_read)
     async_request(args, on_read, true)
 end
 
+function M.list_repo_notifications_all(on_read)
+    local args = {
+        'api',
+        '-X',
+        'GET',
+        '-F',
+        'per_page=100',
+        '-F',
+        'all=true',
+        "/repos/{owner}/{repo}/notifications"
+    }
+    async_request(args, on_read, true)
+end
+
 function M.set_notification_read(thread_id)
     local cmd = [[gh api -X PATCH /notifications/threads/]] .. thread_id
     return gh_exec(cmd, true)

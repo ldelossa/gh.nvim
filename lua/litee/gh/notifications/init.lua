@@ -51,8 +51,8 @@ function M.on_refresh()
                 lib_notify.notify_popup_with_timeout("Failed to list notifications: " .. err, 7500, "error")
                 return
             end
-            M.state.buf = noti_buffer.render_notifications(data)
-            vim.api.nvim_win_set_buf(M.state.win, M.state.buf)
+            -- just render into the current buffer, do not try to set it to a win
+            noti_buffer.render_notifications(data)
         end)
     end)
 end
