@@ -93,6 +93,7 @@ function M.render_issue(issue)
     table.insert(buffer_lines, string.format("%s %s  Created: %s", symbols.left, config.icon_set["Calendar"], issue["created_at"]))
     table.insert(buffer_lines, string.format("%s %s  Last Updated: %s", symbols.left, config.icon_set["Calendar"], issue["updated_at"]))
     table.insert(buffer_lines, string.format("%s %s  Title: %s", symbols.left, config.icon_set["Pencil"], issue["title"]))
+    table.insert(buffer_lines, string.format("%s %s  State: %s", symbols.left, config.icon_set["Info"], issue["state"]))
     table.insert(buffer_lines, symbols.left)
     local body_lines = parse_comment_body(issue["body"], true)
     for _, l in ipairs(body_lines) do
