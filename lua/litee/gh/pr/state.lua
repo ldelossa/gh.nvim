@@ -166,9 +166,6 @@ function spinner()
     return spinners[spinner_state%8]
 end
 
--- -- do this on module load so we start with an empty pull_state
--- M.reset_pull_state()
-
 function M.get_check_runs(cb)
     vim.schedule(function() vim.api.nvim_echo({{spinner() .. " fetching checks", "LTInfo"}}, false, {}) end)
     local fence_id = add_fence("get_check_runs")
