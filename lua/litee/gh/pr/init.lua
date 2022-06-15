@@ -178,12 +178,13 @@ function M.search_pulls()
                                 function(choice)
                                     if choice == "yes" then
                                         M.close_pull()
+                                        M.open_pull_by_number(prs[idx]["number"])
                                         handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
                                     end
                                 end
                             )
                         else
-                            handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                            M.open_pull_by_number(prs[idx]["number"])
                         end
                     end
                 )
@@ -223,12 +224,12 @@ function M.open_pull_request_reviewed_by_user()
                         function(choice)
                             if choice == "yes" then
                                 M.close_pull()
-                                handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                                M.open_pull_by_number(prs[idx]["number"])
                             end
                         end
                     )
                 else
-                    handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                    M.open_pull_by_number(prs[idx]["number"])
                 end
             end
         )
@@ -266,12 +267,12 @@ function M.open_pull_requested_review_user()
                         function(choice)
                             if choice == "yes" then
                                 M.close_pull()
-                                handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                                M.open_pull_by_number(prs[idx]["number"])
                             end
                         end
                     )
                 else
-                    handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                    M.open_pull_by_number(prs[idx]["number"])
                 end
             end
         )
@@ -314,12 +315,12 @@ function M.open_pull(args)
                     function(choice)
                         if choice == "yes" then
                             M.close_pull()
-                            handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                            M.open_pull_by_number(prs[idx]["number"])
                         end
                     end
                 )
             else
-                handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                M.open_pull_by_number(prs[idx]["number"])
             end
         end
     )
@@ -449,46 +450,48 @@ function M.close_pull()
     end
     local state = lib_state.get_state(s.pull_state.tab)
 
-    -- put us in a new tab so we can close windows if we don't have one to change
-    -- to.
-    local other_tab = nil
-    local tabs = vim.api.nvim_list_tabpages()
-    for _, t in ipairs(tabs) do
-        if t ~= s.pull_state.tab then
-            other_tab = t
-            vim.api.nvim_set_current_tabpage(other_tab)
-        end
-    end
-    if other_tab == nil then
-        vim.cmd("tabnew")
-    end
-
-
     -- dump all our state
-    if state["pr"].win ~= nil then
-        if vim.api.nvim_win_is_valid(state["pr"].win) then
-            vim.api.nvim_win_close(state["pr"].win, true)
+    if state ~= nil then
+        if state["pr"].win ~= nil then
+            if vim.api.nvim_win_is_valid(state["pr"].win) then
+                vim.api.nvim_win_close(state["pr"].win, true)
+            end
         end
-    end
-    if state["pr"].buf ~= nil then
-        if vim.api.nvim_buf_is_valid(state["pr"].buf) then
-            vim.api.nvim_buf_delete(state["pr"].buf, {force = true})
+        if state["pr"].buf ~= nil then
+            if vim.api.nvim_buf_is_valid(state["pr"].buf) then
+                vim.api.nvim_buf_delete(state["pr"].buf, {force = true})
+            end
         end
-    end
-    if state["pr"].tree ~= nil then
-        lib_tree.remove_tree(state["pr"].tree)
+        if state["pr"].tree ~= nil then
+            lib_tree.remove_tree(state["pr"].tree)
+        end
     end
 
-    -- pass in our ctx, since we changed tab pages, current tab from ctx wont
-    -- work.
     M.close_pr_commits()
     M.close_pr_review()
 
-    -- rip down our pull request tab
-    vim.api.nvim_set_current_tabpage(s.pull_state.tab)
-    vim.cmd("tabclose")
-
-    lib_state.put_component_state(s.pull_state.tab, "pr", nil)
+    -- rip down our pull request tab if it exists
+    if
+        s.pull_state.tab ~= nil and
+        vim.api.nvim_tabpage_is_valid(s.pull_state.tab) 
+    then
+        if vim.api.nvim_tabpage_is_valid(s.pull_state.tab) then
+            local other_tab = nil
+            local tabs = vim.api.nvim_list_tabpages()
+            for _, t in ipairs(tabs) do
+                if t ~= s.pull_state.tab then
+                    other_tab = t
+                    vim.api.nvim_set_current_tabpage(other_tab)
+                end
+            end
+            if other_tab == nil then
+                vim.cmd("tabnew")
+            end
+            vim.api.nvim_set_current_tabpage(s.pull_state.tab)
+            vim.cmd("tabclose")
+        end
+        lib_state.put_component_state(s.pull_state.tab, "pr", nil)
+    end
 
     -- nil our the pull state
     s.pull_state = nil
