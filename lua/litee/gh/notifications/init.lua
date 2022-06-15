@@ -22,16 +22,18 @@ function M.open_notifications()
         not vim.api.nvim_buf_is_valid(M.state.buf) 
     then
         M.reset_state()
-        vim.cmd("tabnew") 
         M.state.tab = vim.api.nvim_get_current_tabpage()
         M.state.win = vim.api.nvim_get_current_win()
     end
+    vim.cmd("tabnew") 
     ghcli.list_repo_notifications(function(err, data)
         if err then
             lib_notify.notify_popup_with_timeout("Failed to list notifications: " .. err, 7500, "error")
             return
         end
         M.state.buf = noti_buffer.render_notifications(data)
+        M.state.tab = vim.api.nvim_get_current_tabpage()
+        M.state.win = vim.api.nvim_get_current_win()
         vim.api.nvim_win_set_buf(M.state.win, M.state.buf)
         vim.api.nvim_set_current_win(M.state.win)
     end)
