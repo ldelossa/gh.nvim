@@ -127,9 +127,13 @@ function M.build_details_tree(pull, depth, prev_tree)
         "state:",
         depth+1 -- we are a child to the root details node created above, selfsame for all following.
     )
+    local status = pull["state"]
+    if pull["merged_at"] ~= vim.NIL then
+        status = "merged"
+    end
     state.details = {
         name = state.name,
-        detail = pull["state"],
+        detail = status,
         icon = config.icon_set["Info"]
     }
     state.expanded = true
