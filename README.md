@@ -78,7 +78,7 @@ Using [packer.nvim](https://github.com/wbthomason/packer.nvim)
 
 ```lua
 use {
-    'ldelossa/gh.nvim'
+    'ldelossa/gh.nvim',
     requires = { { 'ldelossa/litee.nvim' } }
   }
 ```
