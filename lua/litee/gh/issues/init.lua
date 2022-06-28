@@ -8,23 +8,15 @@ local config        = require('litee.gh.config')
 
 local M = {}
 
-local function extract_issue_cur_line()
-    local cursor = vim.api.nvim_win_get_cursor(0)
-    local line = vim.api.nvim_buf_get_lines(0, cursor[1]-1, cursor[1], true)
-    local issue_number = ""
-    line = line[1]
+local function extract_issue_under_cursor()
+    local current_word = vim.fn.expand('<cWORD>')
+    local issue_number = current_word:match('^#[0-9]+')
 
-    local start_idx = vim.fn.strridx(line, "#", cursor[2])
-    if start_idx == -1 then
-        return nil
-    end
-    issue_number = vim.fn.matchstr(line, "#[0-9]*", start_idx-1)
-    if issue_number == -1 then
-        return nil
+    if issue_number == nil then
+      return nil
     end
 
-    local format = vim.fn.substitute(issue_number, "#", "", "")
-    return format
+    return issue_number:gsub('#', '')
 end
 
 function M.open_issue_by_number(number, cur_win)
@@ -53,7 +45,7 @@ function M.open_issue_by_number(number, cur_win)
 end
 
 function M.open_issue_under_cursor()
-    local issue = extract_issue_cur_line()
+    local issue = extract_issue_under_cursor()
     if issue == nil then
         return
     end
@@ -61,7 +53,7 @@ function M.open_issue_under_cursor()
 end
 
 function M.preview_issue_under_cursor()
-    local number = extract_issue_cur_line()
+    local number = extract_issue_under_cursor()
     if number == nil then
         return
     end
