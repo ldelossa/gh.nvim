@@ -466,7 +466,9 @@ end
 -- reloads all aspects of a PR along with any open Issue buffers (because one
 -- may be the PR issue).
 function M.on_refresh()
-    M.pr_handler(s.pull_state.number, true, vim.schedule_wrap(on_refresh))
+    if s.pull_state ~= nil then
+        M.pr_handler(s.pull_state.number, true, vim.schedule_wrap(on_refresh))
+    end
 end
 
 -- refresh pull request comments only and reload the UI components to reflect
