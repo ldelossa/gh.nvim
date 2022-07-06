@@ -371,7 +371,9 @@ function M.open_diffsplit(commit, file, thread, compare_base)
 
     gitcli.git_show_and_write(parent_commit, file["filename"], diff_file)
     vim.cmd("vert diffsplit " .. diff_file)
-
+    vim.cmd("q")
+    vim.cmd("vert diffsplit " .. diff_file)
+    
     -- we are now in left diff window, bookkeep this and our diff buffers
     state.lwin = vim.api.nvim_get_current_win()
     state.lbuf = vim.api.nvim_win_get_buf(state.lwin)
