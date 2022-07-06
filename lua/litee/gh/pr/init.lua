@@ -91,6 +91,36 @@ local function ui_req_ctx()
     }
 end
 
+local function write_trees(ctx)
+    local args = {
+        {"pr", marshaler.marshal_pr_node},
+        {"pr_files", marshaler.marshal_pr_file_node},
+        {"pr_review", marshaler.marshal_pr_node},
+    }
+    for _, arg in ipairs(args) do
+        if
+            ctx.state[arg[1]] ~= nil and
+            ctx.state[arg[1]].tree ~= nil
+        then
+            local old_cursor = nil
+            if
+                ctx.state[arg[1]].win ~= nil and
+                vim.api.nvim_win_is_valid(ctx.state[arg[1]].win)
+            then
+                old_cursor = vim.api.nvim_win_get_cursor(ctx.state[arg[1]].win)
+            end
+            lib_tree.write_tree_no_guide_leaf(
+                ctx.state[arg[1]].buf,
+                ctx.state[arg[1]].tree,
+                arg[2]
+            )
+            if old_cursor ~= nil then
+                lib_util.safe_cursor_reset(ctx.state[arg[1]].win, old_cursor)
+            end
+        end
+    end
+end
+
 local function start_refresh_timer(now)
     if M.periodic_refresh == nil then
         M.periodic_refresh = vim.loop.new_timer()
@@ -885,6 +915,15 @@ local function open_pr_node(ctx, node)
         end
         diff_view.open_diffsplit(s.pull_state.commits[#s.pull_state.commits], node.file, nil, true)
     end
+    if node.changed_file_dir ~= nil then
+        if node.expanded then
+            node.expanded = false
+        else
+            node.expanded = true
+        end
+        write_trees(ctx)
+        return
+    end
 end
 
 function M.open_pr_buffer()
@@ -987,38 +1026,6 @@ function M.details_pr_review()
     if ctx.review_node ~= nil then
         lib_details.details_popup(ctx.state, ctx.review_node, pr_details.details_func)
         return
-    end
-end
-
--- convenience function to re-marshal all the trees, useful as a callback for
--- removing notifications.
-local function write_trees(ctx)
-    local args = {
-        {"pr", marshaler.marshal_pr_node},
-        {"pr_files", marshaler.marshal_pr_file_node},
-        {"pr_review", marshaler.marshal_pr_node},
-    }
-    for _, arg in ipairs(args) do
-        if
-            ctx.state[arg[1]] ~= nil and
-            ctx.state[arg[1]].tree ~= nil
-        then
-            local old_cursor = nil
-            if
-                ctx.state[arg[1]].win ~= nil and
-                vim.api.nvim_win_is_valid(ctx.state[arg[1]].win)
-            then
-                old_cursor = vim.api.nvim_win_get_cursor(ctx.state[arg[1]].win)
-            end
-            lib_tree.write_tree_no_guide_leaf(
-                ctx.state[arg[1]].buf,
-                ctx.state[arg[1]].tree,
-                arg[2]
-            )
-            if old_cursor ~= nil then
-                lib_util.safe_cursor_reset(ctx.state[arg[1]].win, old_cursor)
-            end
-        end
     end
 end
 

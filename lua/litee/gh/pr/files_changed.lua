@@ -70,6 +70,7 @@ function M.build_files_changed_tree(files, depth, prev_tree)
             detail = "",
             icon = config.icon_set["Folder"]
         }
+        dir.changed_file_dir = true
         if dir.depth == 2 then
             dir.expanded = false
         else
