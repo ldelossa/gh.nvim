@@ -255,7 +255,7 @@ function M.on_refresh()
     if
         state.displayed_thread ~= nil
     then
-        local t_buf = thread_buffer.render_thread(state.displayed_thread.thread_id, state.displayed_thread.n_of, state.displayed_thread)
+        local t_buf = thread_buffer.render_thread(state.displayed_thread.thread_id, state.displayed_thread.n_of, state.displayed_thread, state.displayed_thread.side)
 
         if state.displayed_thread.popup then
             return
@@ -508,7 +508,7 @@ function M.next_thread()
     end
     local thread = threads[cur_thread_idx]
 
-    thread_buffer.render_thread(thread.thread["id"], {cur_thread_idx, #threads})
+    thread_buffer.render_thread(thread.thread["id"], {cur_thread_idx, #threads}, nil, side)
     state.displayed_thread["index"] = cur_thread_idx
     state.displayed_thread["thread_id"] = thread.thread["id"]
 end
@@ -614,7 +614,7 @@ function M.toggle_threads(thread_id)
     end
     local thread = threads[n]
 
-    local buf = thread_buffer.render_thread(thread.thread["id"], {n, #threads})
+    local buf = thread_buffer.render_thread(thread.thread["id"], {n, #threads}, nil, side)
     if buf == nil then
         return
     end

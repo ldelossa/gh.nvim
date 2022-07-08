@@ -15,7 +15,7 @@ local pr_handlers       = require('litee.gh.pr.handlers')
 local issues            = require('litee.gh.issues')
 local noti              = require('litee.gh.notifications')
 -- unused, but must init the global completion function.
-local completion    = require('litee.gh.completion')
+local completion        = require('litee.gh.completion')
 
 -- register_pr_component registers the "pr" litee component.
 --
@@ -191,7 +191,7 @@ local function merge_configs(user_config)
 end
 
 local function register_git_buffer_completion()
-    vim.api.nvim_create_autocmd({"CursorHold"}, {
+    vim.api.nvim_create_autocmd({"BufEnter"}, {
         pattern = {"*.git/*"},
         callback = function(args)
             vim.api.nvim_buf_set_option(args.buf, 'ofu', 'v:lua.GH_completion')

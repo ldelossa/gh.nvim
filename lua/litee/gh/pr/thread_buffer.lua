@@ -1,5 +1,6 @@
 local lib_notify    = require('litee.lib.notify')
 local lib_util      = require('litee.lib.util')
+local lib_path      = require('litee.lib.util.path')
 
 local ghcli         = require('litee.gh.ghcli')
 local s             = require('litee.gh.pr.state')
@@ -326,13 +327,20 @@ end
 
 -- write_preview grabs the buffer lines the thread refers to and writes a preview
 -- of these threads into buffer_lines.
-function write_preview(thread, buffer_lines)
+function write_preview(thread, buffer_lines, side)
     local thread_source_lines = extract_thread_lines(thread)
     -- grab source code buffer for preview
     local buf = nil
     for _, b in ipairs(vim.api.nvim_list_bufs()) do
-        local path = string.format("%s/%s", vim.fn.getcwd(), thread.thread["path"])
+        local path = ""
+        if side == "LEFT" then
+            path = string.format("%s/%s", "/tmp", lib_path.basename(thread.thread["path"]))
+        else
+            path = string.format("%s/%s", vim.fn.getcwd(), thread.thread["path"])
+        end
+        print("comparing " .. vim.api.nvim_buf_get_name(b) .. " and " .. path)
         if vim.api.nvim_buf_get_name(b) == path then
+            print("found")
             buf = b
         end
     end
@@ -371,7 +379,7 @@ end
 -- previously writen text.
 --
 -- this method is intended to work as a 'refresh' method as well.
-function M.render_thread(thread_id, n_of, displayed_thread)
+function M.render_thread(thread_id, n_of, displayed_thread, side)
     if state.buf == nil or not vim.api.nvim_buf_is_valid(state.buf) then
         setup_buffer()
     end
@@ -430,7 +438,7 @@ function M.render_thread(thread_id, n_of, displayed_thread)
     table.insert(buffer_lines, string.format("%s %s  Created: %s", symbols.left, config.icon_set["Calendar"], root_comment.comment["createdAt"]))
     table.insert(buffer_lines, string.format("%s %s  Last Updated: %s", symbols.left, config.icon_set["Calendar"], root_comment.comment["updatedAt"]))
     -- preview in header
-    write_preview(thread, buffer_lines)
+    write_preview(thread, buffer_lines, side)
     table.insert(buffer_lines, symbols.left)
     table.insert(buffer_lines, string.format("%s (submit: %s)(comment actions: %s)(un/resolve: %s)", symbols.bottom, config.config.keymaps.submit_comment, config.config.keymaps.actions, config.config.keymaps.resolve_thread))
     table.insert(buffer_lines, "")
