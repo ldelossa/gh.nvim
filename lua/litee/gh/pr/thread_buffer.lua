@@ -338,9 +338,7 @@ function write_preview(thread, buffer_lines, side)
         else
             path = string.format("%s/%s", vim.fn.getcwd(), thread.thread["path"])
         end
-        print("comparing " .. vim.api.nvim_buf_get_name(b) .. " and " .. path)
         if vim.api.nvim_buf_get_name(b) == path then
-            print("found")
             buf = b
         end
     end
