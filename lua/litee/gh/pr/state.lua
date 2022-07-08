@@ -172,38 +172,37 @@ function M.get_check_runs(cb)
     ghcli.get_check_suites_async(M.pull_state.head, function(err, data)
         if err then
             vim.schedule(function () lib_notify.notify_popup_with_timeout("Failed to fetch check suites: " .. err, 7500, "error") end)
-            return
         end
         if not check_fence("get_check_runs", fence_id) then
             cb()
             return
         end
         local suite_counter = 0
-        M.pull_state.check_runs = {}
+        local check_runs = {}
+        if M.pull_state.check_runs == nil then
+            M.pull_state.check_runs = {}
+        end
         if #data["check_suites"] > 0 then -- if we need to, go get the check runs for the suites we found.
             for _, suite in ipairs(data["check_suites"]) do
-                local fence_name = "get_check_runs_by_suite_" .. suite["id"]
-                local sub_fence_id = add_fence(fence_name)
                 ghcli.get_check_runs_by_suite(suite["id"], function(err1, runs)
                     if err1 then
                         vim.schedule(function () lib_notify.notify_popup_with_timeout("Failed to fetch check runs: " .. err, 7500, "error") end)
                         return
                     end
-                    if not check_fence(fence_name, sub_fence_id) then
-                        return
-                    end
                     for _, run in ipairs(runs["check_runs"]) do
-                        table.insert(M.pull_state.check_runs, run)
+                        table.insert(check_runs, run)
                     end
                     suite_counter = suite_counter + 1
                     if suite_counter == #data["check_suites"] then
+                        -- last suite was handled, swap our checks dict and call
+                        -- cb()
+                        M.pull_state.check_runs = check_runs
                         cb()
                     end
                 end)
             end
-        else
-            cb()
         end
+        cb()
     end)
 end
 
@@ -519,9 +518,9 @@ function M.load_state_async(pull_number, on_load)
                         M.get_review_threads_async(pull_number, function()
                             M.get_commits_async(pull_number, function()
                                 M.get_check_runs(
-                                    function () 
+                                    function ()
                                         vim.schedule(function() vim.api.nvim_echo({{spinner() .. " successfully fetched all PR state.", "LTSuccess"}}, false, {}) end)
-                                        vim.schedule(on_load) 
+                                        vim.schedule(on_load)
                                     end
                                 )
                             end)
