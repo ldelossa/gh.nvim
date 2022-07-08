@@ -915,7 +915,7 @@ local function open_pr_node(ctx, node)
         end
         diff_view.open_diffsplit(s.pull_state.commits[#s.pull_state.commits], node.file, nil, true)
     end
-    if node.changed_file_dir ~= nil then
+    if node.changed_file_dir ~= nil or node.details ~= nil then
         if node.expanded then
             node.expanded = false
         else

@@ -10,11 +10,8 @@ local symbols = {
     tab = "  ",
 }
 
-local function parse_comment(author, body, left_sign, bottom_sign)
+local function parse_comment(body, left_sign, bottom_sign)
     local lines = {}
-    if author ~= nil then
-        table.insert(lines, string.format("%s %s  %s", symbols.top, config.icon_set["Account"], author))
-    end
     body = vim.fn.split(body, '\n')
     for _, line in ipairs(body) do
         line = vim.fn.substitute(line, "\r", "", "g")
@@ -25,32 +22,24 @@ local function parse_comment(author, body, left_sign, bottom_sign)
         end
         table.insert(lines, line)
     end
-    if bottom_sign then
-        table.insert(lines, symbols.bottom)
-    end
     return lines
 end
 
 function M.details_func(_, node)
     if node.pr ~= nil then
-        local lines = {}
-        local author = node.pr["user"]["login"]
-
-        local title  = parse_comment(nil, node.pr["title"], true, false)
-        for _, l in ipairs(title) do
-            table.insert(lines, l)
-        end
-
-        table.insert(lines, "")
-        table.insert(lines, string.format("%s #%d", symbols.left, node.pr["number"]))
-        table.insert(lines, "")
-
-        local body  = parse_comment(author, node.pr["body"], true, true)
+        local buffer_lines = {}
+        table.insert(buffer_lines, string.format("%s %s  PR: #%s", symbols.top, config.icon_set["GitPullRequest"], node.pr["number"]))
+        table.insert(buffer_lines, string.format("%s %s  Author: %s", symbols.left, config.icon_set["Account"], node.pr["user"]["login"]))
+        table.insert(buffer_lines, string.format("%s %s  Created: %s", symbols.left, config.icon_set["Calendar"], node.pr["created_at"]))
+        table.insert(buffer_lines, string.format("%s %s  Last Updated: %s", symbols.left, config.icon_set["Calendar"], node.pr["updated_at"]))
+        table.insert(buffer_lines, string.format("%s %s  Title: %s", symbols.left, config.icon_set["Pencil"], node.pr["title"]))
+        table.insert(buffer_lines, symbols.left)
+        local body  = parse_comment(node.pr["body"], true, false)
         for _, l in ipairs(body) do
-            table.insert(lines, l)
+            table.insert(buffer_lines, l)
         end
-
-        return lines
+        table.insert(buffer_lines, symbols.bottom)
+        return buffer_lines
     end
     if node.commit ~= nil then
         local author = "unknown"
