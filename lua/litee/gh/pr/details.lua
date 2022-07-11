@@ -54,19 +54,36 @@ function M.details_func(_, node)
                 author = node.commit["commit"]["author"]["email"]
             end
         end
-
-        local message = parse_comment(author, node.commit.commit["message"], true, true)
-        return message
+        local buffer_lines = {}
+        table.insert(buffer_lines, symbols.top)
+        local message = parse_comment(node.commit.commit["message"], true, true)
+        for _, l in ipairs(message) do
+            table.insert(buffer_lines, l)
+        end
+        table.insert(buffer_lines, symbols.bottom)
+        return buffer_lines
     end
     if node.review ~= nil then
+        local buffer_lines = {}
+        table.insert(buffer_lines, symbols.top)
         local author = node.review["user"]["login"]
-        local body = parse_comment(author, node.review["body"], true, true)
-        return body
+        local body = parse_comment(node.review["body"], true, true)
+        for _, l in ipairs(body) do
+            table.insert(buffer_lines, l)
+        end
+        table.insert(buffer_lines, symbols.bottom)
+        return buffer_lines
     end
     if node.comment ~= nil then
+        local buffer_lines = {}
+        table.insert(buffer_lines, symbols.top)
         local author = node.comment["author"]["login"]
-        local body = parse_comment(author, node.comment["body"], true, true)
-        return body
+        local body = parse_comment(node.comment["body"], true, true)
+        for _, l in ipairs(body) do
+            table.insert(buffer_lines, l)
+        end
+        table.insert(buffer_lines, symbols.bottom)
+        return buffer_lines
     end
 end
 
