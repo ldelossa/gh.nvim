@@ -40,7 +40,11 @@ M.config = {
         -- inside a gh.nvim panel, if possible, open the node's web URL in your
         -- browser. useful particularily for digging into external failed CI
         -- checks.
-        goto_web = "gx"
+        goto_web = "gx",
+        -- if selectable, select the object under the cursor for additional operations.
+        select = "<leader>",
+        -- if selectable, clear all selected items.
+        clear_selection = "<leader><leader>"
     },
 }
 

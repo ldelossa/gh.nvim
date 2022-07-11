@@ -14,7 +14,12 @@ local state = {
     -- the buffer id where the thread is rendered
     buf = nil,
     -- a mapping between extmarks and their notification objects.
-    marks_to_notifications = {}
+    marks_to_notifications = {},
+    -- a map of notification id to notifications. these are notifications selected
+    -- for batch operations.
+    selected_notifications = {},
+    -- the set of last notifications to be rendered.
+    notifications = {}
 }
 
 local function reset_state()
@@ -97,6 +102,8 @@ local function setup_buffer()
     vim.api.nvim_buf_set_keymap(state.buf, 'n', config.config.keymaps.open, "", {callback=M.open_notification})
     vim.api.nvim_buf_set_keymap(state.buf, 'n', config.config.keymaps.actions, "", {callback=M.notification_actions})
     vim.api.nvim_buf_set_keymap(state.buf, 'n', config.config.keymaps.details, "", {callback=preview_issue})
+    vim.api.nvim_buf_set_keymap(state.buf, 'n', config.config.keymaps.select, "", {callback=M.select_notification})
+    vim.api.nvim_buf_set_keymap(state.buf, 'n', config.config.keymaps.clear_selection, "", {callback=M.clear_selection})
 
     vim.api.nvim_create_autocmd({"BufEnter"}, {
         buffer = state.buf,
@@ -126,7 +133,7 @@ function M.render_notifications(notifications)
     table.insert(buffer_lines, string.format("%s %s  Owner: %s", symbols.left, config.icon_set["Account"], repo["owner"]["login"]))
     table.insert(buffer_lines, string.format("%s %s  Repo: %s", symbols.left, config.icon_set["GitRepo"], repo["name"]))
     table.insert(buffer_lines, string.format("%s %s  Count: %s", symbols.left, config.icon_set["Number"], #notifications))
-    table.insert(buffer_lines, string.format("%s (open: %s)(notification actions: %s)(preview issue: %s)", symbols.bottom, config.config.keymaps.open, config.config.keymaps.actions, config.config.keymaps.details))
+    table.insert(buffer_lines, string.format("%s (open: %s)(notification actions: %s)(preview issue: %s)(select: %s)(clear selection: %s)", symbols.bottom, config.config.keymaps.open, config.config.keymaps.actions, config.config.keymaps.details, config.config.keymaps.select, config.config.keymaps.clear_selection))
     -- add an extmark here associated with nil so we don't try to preview when
     -- cursor is in header.
     table.insert(marks_to_create, {#buffer_lines-1, nil})
@@ -142,7 +149,12 @@ function M.render_notifications(notifications)
         end
         local issue_number = extract_issue_number(noti)
         table.insert(buffer_lines, symbols.top)
-        table.insert(buffer_lines, string.format("%s %s  %s  %s %s   %s", symbols.left, read_ico, type_ico, "#"..issue_number, noti["subject"]["title"], noti["reason"]))
+        -- if this notification is in our selection state, set a check mark
+        if state.selected_notifications[noti.id] ~= nil then
+            table.insert(buffer_lines, string.format("%s %s  %s  %s  %s %s   %s", symbols.left, read_ico, type_ico, config.icon_set["Check"], "#"..issue_number, noti["subject"]["title"], noti["reason"]))
+        else
+            table.insert(buffer_lines, string.format("%s %s  %s  %s %s   %s", symbols.left, read_ico, type_ico, "#"..issue_number, noti["subject"]["title"], noti["reason"]))
+        end
         table.insert(buffer_lines, symbols.bottom)
         table.insert(marks_to_create, {#buffer_lines-1, noti})
     end
@@ -164,6 +176,7 @@ function M.render_notifications(notifications)
         state.marks_to_notifications[id] = m[2]
     end
 
+    state.notifications = notifications
     return state.buf
 end
 
@@ -208,28 +221,86 @@ local function set_unsubscribed(notification)
     end
 end
 
+function M.select_notification()
+    local notification = notification_under_cursor()
+    if notification == nil then
+        return
+    end
+    -- toggle the selection
+    if state.selected_notifications[notification.id] ~= nil then
+        state.selected_notifications[notification.id] = nil
+    else
+        state.selected_notifications[notification.id] = notification
+    end
+    M.render_notifications(state.notifications)
+end
+
+function M.clear_selection()
+    state.selected_notifications = {}
+    M.render_notifications(state.notifications)
+end
+
 function M.notification_actions()
     local notification = notification_under_cursor()
     if notification == nil then
         return
     end
-    vim.ui.select(
-        {"read", "unsubscribe"},
-        {prompt="Pick a action to perform on this comment: "},
-        function(item, _)
-            if item == nil then
-                return
-            end
-            if item == "read" then
-                set_read(notification)
-            end
-            if item == "unsubscribe" then
-                set_unsubscribed(notification)
-                set_read(notification)
-            end
-            vim.cmd("GHRefreshNotifications")
+
+    local selected = (function()
+        local i = 0
+        for _, _ in pairs(state.selected_notifications) do
+            i = i + 1
         end
-    )
+        if i > 0 then
+            return i
+        end
+        return false
+    end)()
+
+    if selected then
+        local read = "read (selected: " .. selected .. ")"
+        local unsubscribe = "unsubscribe (selected: " .. selected .. ")"
+        vim.ui.select(
+            {read, unsubscribe},
+            {prompt="Pick a action to perform on this comment: "},
+            function(item, _)
+                if item == nil then
+                    return
+                end
+                if item == read then
+                    for _, noti in pairs(state.selected_notifications) do
+                        set_read(noti)
+                    end
+                end
+                if item == unsubscribe then
+                    for _, noti in pairs(state.selected_notifications) do
+                        set_unsubscribed(noti)
+                        set_read(noti)
+                    end
+                end
+                M.clear_selection()
+                vim.cmd("GHRefreshNotifications")
+            end
+        )
+    else
+        vim.ui.select(
+            {"read", "unsubscribe"},
+            {prompt="Pick a action to perform on this comment: "},
+            function(item, _)
+                if item == nil then
+                    return
+                end
+                if item == "read" then
+                    set_read(notification)
+                end
+                if item == "unsubscribe" then
+                    set_unsubscribed(notification)
+                    set_read(notification)
+                end
+                vim.cmd("GHRefreshNotifications")
+            end
+        )
+    end
 end
 
 return M
