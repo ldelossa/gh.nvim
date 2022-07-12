@@ -38,6 +38,10 @@ function M.ui_handler(refresh, on_load_ui)
     local cur_tabpage = vim.api.nvim_win_get_tabpage(cur_win)
     local state_was_nil = false
 
+    if s.pull_state.tab ~= nil then
+        cur_tabpage = s.pull_state.tab
+    end
+
     -- refresh var from closure.
     if not refresh then
         local remote_url = s.get_pr_remote_url()
@@ -210,6 +214,10 @@ function M.review_handler(review_id, refresh)
     local cur_tabpage = vim.api.nvim_win_get_tabpage(cur_win)
     local state_was_nil = false
 
+    if s.pull_state.tab ~= nil then
+        cur_tabpage = s.pull_state.tab
+    end
+
     -- setup state for the pr_review component
     local state = lib_state.get_component_state(cur_tabpage, "pr_review")
     if state == nil then
@@ -299,6 +307,10 @@ function M.commits_handler(sha, refresh)
     local cur_win = vim.api.nvim_get_current_win()
     local cur_tabpage = vim.api.nvim_win_get_tabpage(cur_win)
     local state_was_nil = false
+
+    if s.pull_state.tab ~= nil then
+        cur_tabpage = s.pull_state.tab
+    end
 
     if not refresh then
         -- won't check out commit unless repo is clean.
