@@ -92,6 +92,7 @@ end
 -- @return node (table) the root node of the details sub-tree with children
 -- attached.
 function M.build_details_tree(pull, depth, prev_tree)
+    print(vim.inspect(pull))
     local prev_root = nil
     if prev_tree ~= nil and prev_tree.depth_table[depth] ~= nil then
         for _, prev_node in ipairs(prev_tree.depth_table[depth]) do
@@ -134,13 +135,19 @@ function M.build_details_tree(pull, depth, prev_tree)
         depth+1 -- we are a child to the root details node created above, selfsame for all following.
     )
     local status = pull["state"]
+    local icon = config.icon_set["GitPullRequest"]
     if pull["merged_at"] ~= vim.NIL then
         status = "merged"
+        icon = config.icon_set["GitMerge"]
+    end
+    if pull["draft"] == true then
+        status = "draft"
+        icon = config.icon_set["Pencil"]
     end
     state.details = {
         name = state.name,
         detail = status,
-        icon = config.icon_set["Info"]
+        icon = icon
     }
     state.expanded = true
 
