@@ -92,7 +92,6 @@ end
 -- @return node (table) the root node of the details sub-tree with children
 -- attached.
 function M.build_details_tree(pull, depth, prev_tree)
-    print(vim.inspect(pull))
     local prev_root = nil
     if prev_tree ~= nil and prev_tree.depth_table[depth] ~= nil then
         for _, prev_node in ipairs(prev_tree.depth_table[depth]) do
