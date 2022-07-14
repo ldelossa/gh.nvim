@@ -184,7 +184,14 @@ function M.render_notifications(notifications)
     table.insert(buffer_lines, string.format("%s %s  Owner: %s", symbols.left, config.icon_set["Account"], repo["owner"]["login"]))
     table.insert(buffer_lines, string.format("%s %s  Repo: %s", symbols.left, config.icon_set["GitRepo"], repo["name"]))
     table.insert(buffer_lines, string.format("%s %s  Count: %s", symbols.left, config.icon_set["Number"], #notifications))
-    table.insert(buffer_lines, string.format("%s (open: %s)(notification actions: %s)(preview issue: %s)(select: %s)(clear selection: %s)", symbols.bottom, config.config.keymaps.open, config.config.keymaps.actions, config.config.keymaps.details, config.config.keymaps.select, config.config.keymaps.clear_selection))
+    table.insert(buffer_lines, string.format("%s (open: %s)(notification actions: %s)(preview issue: %s)(select: %s)(clear selection: %s)(toggle unread: %s)",
+        symbols.bottom,
+        config.config.keymaps.open,
+        config.config.keymaps.actions,
+        config.config.keymaps.details,
+        config.config.keymaps.select,
+        config.config.keymaps.clear_selection,
+        config.config.keymaps.toggle_unread))
     -- add an extmark here associated with nil so we don't try to preview when
     -- cursor is in header.
     table.insert(marks_to_create, {#buffer_lines-1, nil})
