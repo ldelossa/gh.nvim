@@ -464,7 +464,14 @@ function M.edit_comment()
 
     local lines = {}
 
-    if comment["author_association"] ~=  "OWNER" then
+    local user = ghcli.get_cached_user()
+    if user == nil then
+        lib_notify.notify_popup_with_timeout("Could not retrieve gh user.", 7500, "error")
+        return
+    end
+    local user_comment = comment["user"]["login"]
+
+    if user["login"] ~= user_comment then
         lib_notify.notify_popup_with_timeout("Cannot edit a comment you did not author.", 7500, "error")
         return
     end
