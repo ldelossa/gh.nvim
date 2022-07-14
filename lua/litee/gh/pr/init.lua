@@ -121,28 +121,6 @@ local function write_trees(ctx)
     end
 end
 
-local function start_refresh_timer(now)
-    if M.periodic_refresh == nil then
-        M.periodic_refresh = vim.loop.new_timer()
-    end
-    if now then
-        vim.schedule(function () lib_notify.notify_popup_with_timeout("Refreshing Pull Request.", 7500, "info") end)
-        handlers.on_refresh()
-    end
-    vim.schedule(function() vim.api.nvim_echo({{"[gh.nvim] started backround refresh with interval " .. 180000/1000/60 .. " minutes", "LTInfo"}}, false, {}) end)
-    M.periodic_refresh:start(180000, 180000, function()
-        vim.schedule(function () lib_notify.notify_popup_with_timeout("Refreshing Pull Request.", 7500, "info") end)
-        handlers.on_refresh() end
-    )
-end
-
-local function stop_refresh_timer()
-    if M.periodic_refresh == nil then
-        return
-    end
-    vim.loop.timer_stop(M.periodic_refresh)
-end
-
 local function on_tab_close()
     table.insert(M.autocmds, vim.api.nvim_create_autocmd({"TabClosed", "QuitPre"}, {
         callback = function(args)
@@ -166,12 +144,12 @@ function M.open_pull_by_number(number)
             function(choice)
                 if choice == "yes" then
                     M.close_pull()
-                    handlers.pr_handler(number, false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                    handlers.pr_handler(number, false, vim.schedule_wrap(function () on_tab_close() end ))
                 end
             end
         )
     else
-        handlers.pr_handler(number, false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+        handlers.pr_handler(number, false, vim.schedule_wrap(function () on_tab_close() end ))
     end
 end
 
@@ -209,7 +187,7 @@ function M.search_pulls()
                                     if choice == "yes" then
                                         M.close_pull()
                                         M.open_pull_by_number(prs[idx]["number"])
-                                        handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () start_refresh_timer() on_tab_close() end ))
+                                        handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () on_tab_close() end ))
                                     end
                                 end
                             )
@@ -403,10 +381,6 @@ function M.popout_to_pr_files()
 end
 
 function M.clean()
-    -- kill background refresh
-    stop_refresh_timer()
-    M.periodic_refresh = nil
-
     -- cleanup litee remotes
     local remotes = gitcli.list_remotes()
     for _, remote in ipairs(remotes) do

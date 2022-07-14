@@ -14,6 +14,9 @@ M.config = {
     -- whether to register the @username and #issue_number omnifunc completion
     -- in buffers which start with .git/
     git_buffer_completion = true,
+    -- background refresh timer interval in milliseconds. defaults to five
+    -- minutes.
+    refresh_interval = 300000,
     -- defines keymaps in gh.nvim buffers.
     keymaps = {
         -- when inside a gh.nvim panel, this key will open a node if it has

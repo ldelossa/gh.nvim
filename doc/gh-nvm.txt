@@ -372,6 +372,9 @@ M.config = {
     -- whether to register the @username and #issue_number omnifunc completion
     -- in buffers which start with .git/
     git_buffer_completion = true,
+    -- background refresh timer interval in milliseconds. defaults to five
+    -- minutes.
+    refresh_interval = 300000,
     -- defines keymaps in gh.nvim buffers.
     keymaps = {
         -- when inside a gh.nvim panel, this key will open a node if it has
@@ -398,6 +401,12 @@ M.config = {
         -- inside a gh.nvim panel, if possible, open the node's web URL in your
         -- browser. useful particularily for digging into external failed CI
         -- checks.
-        goto_web = "gx"
+        goto_web = "gx",
+        -- if selectable, select the object under the cursor for additional operations.
+        select = "<leader>",
+        -- if selectable, clear all selected items.
+        clear_selection = "<leader><leader>",
+        -- toggle unread items
+        toggle_unread = "u"
     },
 }

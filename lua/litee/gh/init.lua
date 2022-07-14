@@ -1,21 +1,21 @@
 local M = {}
 
-local lib_tree      = require('litee.lib.tree')
-local lib_notify    = require('litee.lib.notify')
-local lib_panel     = require('litee.lib.panel')
-local lib_util_win  = require('litee.lib.util.window')
+local lib_tree     = require('litee.lib.tree')
+local lib_notify   = require('litee.lib.notify')
+local lib_panel    = require('litee.lib.panel')
+local lib_util_win = require('litee.lib.util.window')
 
-local commands          = require('litee.gh.commands')
-local c                 = require('litee.gh.config')
-local pr_buffer         = require('litee.gh.pr.buffer')
-local pr_marshallers    = require('litee.gh.pr.marshal')
-local pr                = require('litee.gh.pr')
-local pr_state          = require('litee.gh.pr.state')
-local pr_handlers       = require('litee.gh.pr.handlers')
-local issues            = require('litee.gh.issues')
-local noti              = require('litee.gh.notifications')
+local commands       = require('litee.gh.commands')
+local c              = require('litee.gh.config')
+local pr_buffer      = require('litee.gh.pr.buffer')
+local pr_marshallers = require('litee.gh.pr.marshal')
+local pr             = require('litee.gh.pr')
+local pr_state       = require('litee.gh.pr.state')
+local pr_handlers    = require('litee.gh.pr.handlers')
+local issues         = require('litee.gh.issues')
+local noti           = require('litee.gh.notifications')
 -- unused, but must init the global completion function.
-local completion        = require('litee.gh.completion')
+local completion     = require('litee.gh.completion')
 
 -- register_pr_component registers the "pr" litee component.
 --
@@ -29,23 +29,23 @@ local function register_pr_component()
 
         local buf_name = "PullRequest"
 
-        state["pr"].buf =
-            pr_buffer.setup_buffer(buf_name, state["pr"].buf, state["pr"].tab, pr.open_node_pr, pr.details_pr)
+        state["pr"].buf = pr_buffer.setup_buffer(buf_name, state["pr"].buf, state["pr"].tab, pr.open_node_pr,
+            pr.details_pr)
         if state["pr"].tree == nil then
             return false
         end
 
         -- setup other buffer keymaps
         if not c.config.disable_keymaps then
-            vim.api.nvim_buf_set_keymap(state["pr"].buf, "n", c.config.keymaps.expand, "",{
+            vim.api.nvim_buf_set_keymap(state["pr"].buf, "n", c.config.keymaps.expand, "", {
                 silent = true,
                 callback = pr.expand_pr,
             })
-            vim.api.nvim_buf_set_keymap(state["pr"].buf, "n", c.config.keymaps.collapse, "",{
+            vim.api.nvim_buf_set_keymap(state["pr"].buf, "n", c.config.keymaps.collapse, "", {
                 silent = true,
                 callback = pr.collapse_pr,
             })
-            vim.api.nvim_buf_set_keymap(state["pr"].buf, "n", c.config.keymaps.goto_web, "",{
+            vim.api.nvim_buf_set_keymap(state["pr"].buf, "n", c.config.keymaps.goto_web, "", {
                 silent = true,
                 callback = pr.open_node_url,
             })
@@ -82,23 +82,23 @@ local function register_pr_files_component()
 
         local buf_name = "PullRequestCommit"
 
-        state["pr_files"].buf =
-            pr_buffer.setup_buffer(buf_name, state["pr_files"].buf, state["pr_files"].tab, pr.open_node_files, pr.details_pr_files)
+        state["pr_files"].buf = pr_buffer.setup_buffer(buf_name, state["pr_files"].buf, state["pr_files"].tab,
+            pr.open_node_files, pr.details_pr_files)
         if state["pr_files"].tree == nil then
             return false
         end
 
         -- setup other buffer keymaps
         if not c.config.disable_keymaps then
-            vim.api.nvim_buf_set_keymap(state["pr_files"].buf, "n", c.config.keymaps.expand, "",{
+            vim.api.nvim_buf_set_keymap(state["pr_files"].buf, "n", c.config.keymaps.expand, "", {
                 silent = true,
                 callback = pr.expand_pr_commits,
             })
-            vim.api.nvim_buf_set_keymap(state["pr_files"].buf, "n", c.config.keymaps.collapse, "",{
+            vim.api.nvim_buf_set_keymap(state["pr_files"].buf, "n", c.config.keymaps.collapse, "", {
                 silent = true,
                 callback = pr.collapse_pr_commits,
             })
-            vim.api.nvim_buf_set_keymap(state["pr_files"].buf, "n", c.config.keymaps.goto_web, "",{
+            vim.api.nvim_buf_set_keymap(state["pr_files"].buf, "n", c.config.keymaps.goto_web, "", {
                 silent = true,
                 callback = pr.open_node_url,
             })
@@ -132,22 +132,22 @@ local function register_pr_review_component()
 
         local buf_name = "PullRequestReview"
 
-        state["pr_review"].buf =
-            pr_buffer.setup_buffer(buf_name, state["pr_review"].buf, state["pr_review"].tab, pr.open_node_review, pr.details_pr_review)
+        state["pr_review"].buf = pr_buffer.setup_buffer(buf_name, state["pr_review"].buf, state["pr_review"].tab,
+            pr.open_node_review, pr.details_pr_review)
         if state["pr_review"].tree == nil then
             return false
         end
 
         if not c.config.disable_keymaps then
-            vim.api.nvim_buf_set_keymap(state["pr_review"].buf, "n", c.config.keymaps.expand, "",{
+            vim.api.nvim_buf_set_keymap(state["pr_review"].buf, "n", c.config.keymaps.expand, "", {
                 silent = true,
                 callback = pr.expand_pr_review,
             })
-            vim.api.nvim_buf_set_keymap(state["pr_review"].buf, "n", c.config.keymaps.collapse, "",{
+            vim.api.nvim_buf_set_keymap(state["pr_review"].buf, "n", c.config.keymaps.collapse, "", {
                 silent = true,
                 callback = pr.collapse_pr_review,
             })
-            vim.api.nvim_buf_set_keymap(state["pr_review"].buf, "n", c.config.keymaps.goto_web, "",{
+            vim.api.nvim_buf_set_keymap(state["pr_review"].buf, "n", c.config.keymaps.goto_web, "", {
                 silent = true,
                 callback = pr.open_node_url,
             })
@@ -191,14 +191,14 @@ local function merge_configs(user_config)
 end
 
 local function register_git_buffer_completion()
-    vim.api.nvim_create_autocmd({"BufEnter"}, {
-        pattern = {"*.git/*"},
+    vim.api.nvim_create_autocmd({ "BufEnter" }, {
+        pattern = { "*.git/*" },
         callback = function(args)
             vim.api.nvim_buf_set_option(args.buf, 'ofu', 'v:lua.GH_completion')
         end
     })
-    vim.api.nvim_create_autocmd({"CursorHold"}, {
-        pattern = {"*.git/*"},
+    vim.api.nvim_create_autocmd({ "CursorHold" }, {
+        pattern = { "*.git/*" },
         callback = issues.preview_issue_under_cursor
     })
 end
@@ -254,7 +254,7 @@ function M.start_refresh_timer(now)
     if now then
         M.refresh()
     end
-    M.refresh_timer:start(180000, 180000, function()
+    M.refresh_timer:start(c.config.refresh_interval, c.config.refresh_interval, function()
         M.refresh()
     end)
 end
