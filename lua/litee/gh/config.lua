@@ -44,7 +44,9 @@ M.config = {
         -- if selectable, select the object under the cursor for additional operations.
         select = "<leader>",
         -- if selectable, clear all selected items.
-        clear_selection = "<leader><leader>"
+        clear_selection = "<leader><leader>",
+        -- toggle unread items
+        toggle_unread = "u"
     },
 }
 

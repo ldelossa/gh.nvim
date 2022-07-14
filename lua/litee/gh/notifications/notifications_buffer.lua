@@ -19,7 +19,9 @@ local state = {
     -- for batch operations.
     selected_notifications = {},
     -- the set of last notifications to be rendered.
-    notifications = {}
+    notifications = {},
+    -- whether the notification buffer is showing unread messages or not.
+    show_unread = false
 }
 
 local function reset_state()
@@ -104,6 +106,7 @@ local function setup_buffer()
     vim.api.nvim_buf_set_keymap(state.buf, 'n', config.config.keymaps.details, "", {callback=preview_issue})
     vim.api.nvim_buf_set_keymap(state.buf, 'n', config.config.keymaps.select, "", {callback=M.select_notification})
     vim.api.nvim_buf_set_keymap(state.buf, 'n', config.config.keymaps.clear_selection, "", {callback=M.clear_selection})
+    vim.api.nvim_buf_set_keymap(state.buf, 'n', config.config.keymaps.toggle_unread, "", {callback=M.toggle_unread})
 
     vim.api.nvim_create_autocmd({"BufEnter"}, {
         buffer = state.buf,
@@ -113,6 +116,54 @@ local function setup_buffer()
         buffer = state.buf,
         callback = _win_settings_on,
     })
+end
+
+function M.refresh()
+    if state.show_unread then
+        ghcli.list_repo_notifications_all(function(err, notifications)
+            if err then
+                lib_notify.notify_popup_with_timeout("Failed to list unread notifications.", 7500, "error")
+                return
+            end
+            M.render_notifications(notifications)
+        end)
+    else
+        ghcli.list_repo_notifications(function(err, notifications)
+            if err then
+                lib_notify.notify_popup_with_timeout("Failed to list unread notifications.", 7500, "error")
+                return
+            end
+            M.render_notifications(notifications)
+        end)
+    end
+end
+
+function M.toggle_unread()
+    if state.show_unread then
+        lib_notify.notify_popup("Retreiving unread notifications", "info")
+        ghcli.list_repo_notifications(function(err, notifications)
+            if err then
+                lib_notify.close_notify_popup()
+                lib_notify.notify_popup_with_timeout("Failed to list unread notifications.", 7500, "error")
+                return
+            end
+            lib_notify.close_notify_popup()
+            M.render_notifications(notifications)
+            state.show_unread = not state.show_unread
+        end)
+    else
+        lib_notify.notify_popup("Retreiving all notifications", "info")
+        ghcli.list_repo_notifications_all(function(err, notifications)
+            if err then
+                lib_notify.close_notify_popup()
+                lib_notify.notify_popup_with_timeout("Failed to list unread notifications.", 7500, "error")
+                return
+            end
+            lib_notify.close_notify_popup()
+            M.render_notifications(notifications)
+            state.show_unread = not state.show_unread
+        end)
+    end
 end
 
 function M.render_notifications(notifications)
