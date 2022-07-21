@@ -6,84 +6,111 @@ local issues = require('litee.gh.issues')
 
 local M = {}
 
-function M.setup()
+local commands = {
     -- use a vim.ui.select prompt to open one of the first 100 pull requests.
-    vim.api.nvim_create_user_command("GHOpenPR", pr.open_pull, {nargs="?"})
+    {name = "GHOpenPR", callback=pr.open_pull, opts={nargs="?"}},
+    -- use a vim.ui.select prompt to open one of the first 100 pull requests.
+    {name = "GHOpenPR", callback = pr.open_pull, opts = {nargs="?"}},
     -- open the Pull Request panel in the side bar panel
-    vim.api.nvim_create_user_command("GHOpenToPR", pr.open_to_pr, {})
+    {name = "GHOpenToPR", callback = pr.open_to_pr, opts = {}},
     -- open the Pull Request panel in a pop out window
-    vim.api.nvim_create_user_command("GHPopOutPR", pr.popout_to_pr, {})
+    {name = "GHPopOutPR", callback = pr.popout_to_pr, opts = {}},
     -- open the Commit panel in the side bar panel.
-    vim.api.nvim_create_user_command("GHOpenToCommit", pr.open_to_pr_files, {})
+    {name = "GHOpenToCommit", callback = pr.open_to_pr_files, opts = {}},
     -- open the Commit panel in a pop out window
-    vim.api.nvim_create_user_command("GHPopOutCommit", pr.popout_to_pr_files, {})
+    {name = "GHPopOutCommit", callback = pr.popout_to_pr_files, opts = {}},
     -- collapse the node within the Pull Request panel
-    vim.api.nvim_create_user_command("GHCollapsePR", pr.collapse_pr, {})
+    {name = "GHCollapsePR", callback = pr.collapse_pr, opts = {}},
     -- expand the node within the Pull Request panel
-    vim.api.nvim_create_user_command("GHExpandPR", pr.expand_pr, {})
+    {name = "GHExpandPR", callback = pr.expand_pr, opts = {}},
     -- collapse the node within the Commit panel
-    vim.api.nvim_create_user_command("GHCollapseCommit", pr.collapse_pr_commits, {})
+    {name = "GHCollapseCommit", callback = pr.collapse_pr_commits, opts = {}},
     -- expand the node within the Commit panel
-    vim.api.nvim_create_user_command("GHExpandCommit", pr.expand_pr_commits, {})
+    {name = "GHExpandCommit", callback = pr.expand_pr_commits, opts = {}},
     -- collapse the node within the Review panel
-    vim.api.nvim_create_user_command("GHCollapseReview", pr.collapse_pr_review, {})
+    {name = "GHCollapseReview", callback = pr.collapse_pr_review, opts = {}},
     -- expand the node within the Review panel
-    vim.api.nvim_create_user_command("GHExpandReview", pr.expand_pr_review, {})
+    {name = "GHExpandReview", callback = pr.expand_pr_review, opts = {}},
     -- refresh all details of the PR
-    vim.api.nvim_create_user_command("GHRefreshPR", pr_handlers.on_refresh, {})
+    {name = "GHRefreshPR", callback = pr_handlers.on_refresh, opts = {}},
     -- refresh just comments, useful to fresh convo buffers quicker.
-    vim.api.nvim_create_user_command("GHRefreshComments", pr_handlers.refresh_comments, {})
+    {name = "GHRefreshComments", callback = pr_handlers.refresh_comments, opts = {}},
     -- refresh any open issue buffers, if a PR is opened, this will be ran as part of "GHRefreshPR"
-    vim.api.nvim_create_user_command("GHRefreshIssues", issues.on_refresh, {})
+    {name = "GHRefreshIssues", callback = issues.on_refresh, opts = {}},
     -- refresh the notifications buffer if it is open.
-    vim.api.nvim_create_user_command("GHRefreshNotifications", noti.on_refresh, {})
+    {name = "GHRefreshNotifications", callback = noti.on_refresh, opts = {}},
     -- start a code review
-    vim.api.nvim_create_user_command("GHStartReview", pr.start_review, {})
+    {name = "GHStartReview", callback = pr.start_review, opts = {}},
     -- submit all pending comments in a code review
-    vim.api.nvim_create_user_command("GHSubmitReview", pr.submit_review, {})
+    {name = "GHSubmitReview", callback = pr.submit_review, opts = {}},
     -- delete the current code review
-    vim.api.nvim_create_user_command("GHDeleteReview", pr.delete_review, {})
+    {name = "GHDeleteReview", callback = pr.delete_review, opts = {}},
     -- a convenience function, immediately approve the pull request with an optional comment.
-    vim.api.nvim_create_user_command("GHApproveReview", pr.immediately_approve_review, {})
+    {name = "GHApproveReview", callback = pr.immediately_approve_review, opts = {}},
     -- open the main Pull Request details convo buffer.
-    vim.api.nvim_create_user_command("GHPRDetails", pr.open_pr_buffer, {})
+    {name = "GHPRDetails", callback = pr.open_pr_buffer, opts = {}},
     -- when cursor is on a commented line of a diff view, toggle the convo buffer.
-    vim.api.nvim_create_user_command("GHToggleThreads", function() dv.toggle_threads(nil) end, {})
+    {name = "GHToggleThreads", callback = function() dv.toggle_threads(nil) end, opts = {}},
     -- when cursor is on a commented line of a diff view, move to the next convo buffer
-    vim.api.nvim_create_user_command("GHNextThread", dv.next_thread, {})
+    {name = "GHNextThread", callback = dv.next_thread, opts = {}},
     -- when cursor is on a line which can be commented in a diff view, create a comment
-    vim.api.nvim_create_user_command("GHCreateThread", dv.create_comment, {range=true})
+    {name = "GHCreateThread", callback = dv.create_comment, opts = {range=true}},
     -- close a PR and cleanup any state associated with it (happens on tab and neovim close as well)
-    vim.api.nvim_create_user_command("GHClosePR", pr.close_pull, {})
+    {name = "GHClosePR", callback = pr.close_pull, opts = {}},
     -- close the Commit panel
-    vim.api.nvim_create_user_command("GHCloseCommit", function() pr.close_pr_commits(nil) end, {})
+    {name = "GHCloseCommit", callback = function() pr.close_pr_commits(nil) end, opts = {}},
     -- close the Review panel
-    vim.api.nvim_create_user_command("GHCloseReview", function () pr.close_pr_review(nil) end, {})
+    {name = "GHCloseReview", callback = function () pr.close_pr_review(nil) end, opts = {}},
     -- preview the issue or pull request number under the cursor
-    vim.api.nvim_create_user_command("GHPreviewIssue", issues.preview_issue_under_cursor, {})
+    {name = "GHPreviewIssue", callback = issues.preview_issue_under_cursor, opts = {}},
     -- Add a label to the currently opened pull request.
-    vim.api.nvim_create_user_command("GHAddLabel", pr.add_label, {})
+    {name = "GHAddLabel", callback = pr.add_label, opts = {}},
     -- Remove a label from the currently opened pull request.
-    vim.api.nvim_create_user_command("GHRemoveLabel", pr.remove_label, {})
+    {name = "GHRemoveLabel", callback = pr.remove_label, opts = {}},
     -- If possible, open the node under the cursor in your web browser.
-    vim.api.nvim_create_user_command("GHViewWeb",  pr.open_node_url, {})
+    {name = "GHViewWeb", callback =  pr.open_node_url, opts = {}},
     -- Open an issue, if a number is provided it will be opened directly, if not
     -- a vim.ui.select with all repo issues is opened for selection.
-    vim.api.nvim_create_user_command("GHOpenIssue", issues.open_issue, {nargs="?"})
+    {name = "GHOpenIssue", callback = issues.open_issue, opts = {nargs="?"}},
     -- Open a PR you've been requested to review.
-    vim.api.nvim_create_user_command("GHRequestedReview", pr.open_pull_requested_review_user, {})
+    {name = "GHRequestedReview", callback = pr.open_pull_requested_review_user, opts = {}},
     -- Open a PR in the open state which you have reviewed.
-    vim.api.nvim_create_user_command("GHReviewed", pr.open_pull_request_reviewed_by_user, {})
+    {name = "GHReviewed", callback = pr.open_pull_request_reviewed_by_user, opts = {}},
     -- Search the current repo's PR's utilizing GH search queries. 
     -- Searches are always constrained to the repository Neovim is opened to.
     -- See: https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests
-    vim.api.nvim_create_user_command("GHSearchPRs", pr.search_pulls, {})
+    {name = "GHSearchPRs", callback = pr.search_pulls, opts = {}},
     -- Search the current repo's PR's utilizing GH search queries. 
     -- Searches are always constrained to the repository Neovim is opened to.
     -- See: https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests
-    vim.api.nvim_create_user_command("GHSearchIssues", issues.search_issues, {})
+    {name = "GHSearchIssues", callback = issues.search_issues, opts = {}},
     -- 
-    vim.api.nvim_create_user_command("GHNotifications", noti.open_notifications, {})
+    {name = "GHNotifications", callback = noti.open_notifications, opts = {}},
+}
+
+function M.command_select()
+    vim.ui.select(
+        commands,
+        {
+            prompt = "Select a GH command: ",
+            format_item = function(cmd)
+                return cmd.name
+            end
+        }, function(cmd)
+            if cmd == nil then
+                return
+            end
+            cmd.callback()
+        end
+    )
+end
+
+function M.setup()
+    -- register all commands
+    for _, cmd in ipairs(commands) do
+        vim.api.nvim_create_user_command(cmd.name, cmd.callback, cmd.opts)
+    end
+    vim.api.nvim_create_user_command("GH", M.command_select, {})
 end
 
 return M
