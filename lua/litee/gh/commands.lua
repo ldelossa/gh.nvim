@@ -84,7 +84,8 @@ local commands = {
     -- Searches are always constrained to the repository Neovim is opened to.
     -- See: https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests
     {name = "GHSearchIssues", callback = issues.search_issues, opts = {}},
-    -- 
+    -- Open a UI displaying all unread notifications for the repo gh.nvim is opened
+    -- to.
     {name = "GHNotifications", callback = noti.open_notifications, opts = {}},
 }
 
