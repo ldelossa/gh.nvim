@@ -10,7 +10,7 @@ local M = {}
 
 local function extract_issue_under_cursor()
     local current_word = vim.fn.expand('<cWORD>')
-    local issue_number = current_word:match('^#[0-9]+')
+    local issue_number = current_word:match('#[0-9]+')
 
     if issue_number == nil then
       return nil
