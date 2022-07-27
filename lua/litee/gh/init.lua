@@ -14,6 +14,7 @@ local pr_state       = require('litee.gh.pr.state')
 local pr_handlers    = require('litee.gh.pr.handlers')
 local issues         = require('litee.gh.issues')
 local noti           = require('litee.gh.notifications')
+local commits        = require('litee.gh.commits')
 -- unused, but must init the global completion function.
 local completion     = require('litee.gh.completion')
 
@@ -240,6 +241,7 @@ function M.refresh()
         issues.on_refresh()
     end
     noti.on_refresh()
+    commits.on_refresh()
 end
 
 -- refresh all data
