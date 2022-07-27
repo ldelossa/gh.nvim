@@ -259,6 +259,43 @@ function M.get_commit(ref)
     return gh_exec(cmd)
 end
 
+function M.get_commit_async(ref, on_read) 
+    local args = {
+        "api",
+        "-X",
+        "GET",
+        string.format([[/repos/{owner}/{repo}/commits/%s]], ref)
+    }
+    async_request(args, on_read)
+end
+
+function M.get_commit_comments_async(ref, on_read) 
+    local args = {
+        "api",
+        "-X",
+        "GET",
+        "-F",
+        "per_page=100",
+        string.format([[/repos/{owner}/{repo}/commits/%s/comments]], ref)
+    }
+    async_request(args, on_read, true)
+end
+
+function M.create_commit_comment(sha, body)
+    local cmd = string.format([[gh api -X POST /repos/{owner}/{repo}/commits/%s/comments -f body=%s]], sha, body)
+    return gh_exec(cmd)
+end
+
+function M.update_commit_comment(id, body)
+    local cmd = string.format([[gh api -X PATCH /repos/{owner}/{repo}/comments/%d -f body=%s]], id, body)
+    return gh_exec(cmd)
+end
+
+function M.delete_commit_comment(id)
+    local cmd = string.format([[gh api -X DELETE /repos/{owner}/{repo}/comments/%d]], id)
+    return gh_exec(cmd, true)
+end
+
 function M.get_pull_issue_comments_async(pull_number, on_read)
     local args = {
         'api',
@@ -373,6 +410,18 @@ function M.get_issue_comment_reactions_async(id, on_read)
         '-F',
         'per_page=100',
         string.format('/repos/{owner}/{repo}/issues/comments/%s/reactions', id)
+    }
+    async_request(args, on_read, true)
+end
+
+function M.get_commit_reactions_async(id, on_read)
+    local args = {
+        'api',
+        '-X',
+        'GET',
+        '-F',
+        'per_page=100',
+        string.format('/repos/{owner}/{repo}/comments/%s/reactions', id)
     }
     async_request(args, on_read, true)
 end

@@ -15,6 +15,7 @@ local thread_buffer = require('litee.gh.pr.thread_buffer')
 local pr_details    = require('litee.gh.pr.details')
 local marshaler     = require('litee.gh.pr.marshal')
 local issues        = require('litee.gh.issues')
+local commits       = require('litee.gh.commits')
 
 local M = {}
 
@@ -909,6 +910,9 @@ function M.open_pr_buffer()
 end
 
 local function open_pr_files_node(ctx, node)
+    if node.commit ~= nil then
+        commits.open_commit_by_sha(node.commit["sha"])
+    end
     if node.file ~= nil then
         local tree = lib_tree.get_tree(ctx.state["pr_files"].tree)
         local commit = tree.root.commit
