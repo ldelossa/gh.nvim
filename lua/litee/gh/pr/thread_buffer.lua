@@ -131,9 +131,12 @@ local function in_editable_area()
     end
 end
 
-local function setup_buffer()
+local function setup_buffer(thread_id)
     -- see if we can reuse a buffer that currently exists.
     if state.buf ~= nil and vim.api.nvim_buf_is_valid(state.buf) then
+        if thread_id ~= nil then
+            vim.api.nvim_buf_set_name(state.buf, "thread://" .. thread_id)
+        end
         return state.buf
     else
         state.buf = vim.api.nvim_create_buf(false, false)
@@ -144,7 +147,7 @@ local function setup_buffer()
     end
 
     -- set buf options
-    vim.api.nvim_buf_set_name(state.buf, "pull request thread")
+    vim.api.nvim_buf_set_name(state.buf, "thread://" .. thread_id)
     vim.api.nvim_buf_set_option(state.buf, 'bufhidden', 'hide')
     vim.api.nvim_buf_set_option(state.buf, 'filetype', 'pr')
     vim.api.nvim_buf_set_option(state.buf, 'buftype', 'nofile')
@@ -241,9 +244,7 @@ end
 --
 -- when submit() is subsequently called thread will be created.
 function M.create_thread(details)
-    if state.buf == nil or not vim.api.nvim_buf_is_valid(state.buf) then
-        setup_buffer()
-    end
+    setup_buffer("new")
 
     reset_state()
 
@@ -378,9 +379,7 @@ end
 --
 -- this method is intended to work as a 'refresh' method as well.
 function M.render_thread(thread_id, n_of, displayed_thread, side)
-    if state.buf == nil or not vim.api.nvim_buf_is_valid(state.buf) then
-        setup_buffer()
-    end
+    setup_buffer(thread_id)
 
     local restore = restore_thread(thread_id, displayed_thread)
 

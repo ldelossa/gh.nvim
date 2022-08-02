@@ -146,11 +146,10 @@ local function setup_buffer(sha)
         return nil
     end
 
-
     -- if we have a buffer for this sha just return it.
-    local buf_name = sha
+    local buf_name = "commit://" .. sha
     for _, b in ipairs(vim.api.nvim_list_bufs()) do
-        if lib_path.basename(vim.api.nvim_buf_get_name(b)) == buf_name then
+        if vim.api.nvim_buf_get_name(b) == buf_name then
             return b
         end
     end

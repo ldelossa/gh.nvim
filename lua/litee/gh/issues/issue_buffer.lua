@@ -145,11 +145,10 @@ local function setup_buffer(number)
         return nil
     end
 
-
     -- if we have a buffer for this issue just return it.
-    local buf_name = "issue #" .. number
+    local buf_name = "issue://" .. number
     for _, b in ipairs(vim.api.nvim_list_bufs()) do
-        if lib_path.basename(vim.api.nvim_buf_get_name(b)) == buf_name then
+        if vim.api.nvim_buf_get_name(b) == buf_name then
             return b
         end
     end

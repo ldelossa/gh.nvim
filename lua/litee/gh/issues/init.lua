@@ -22,10 +22,10 @@ end
 function M.open_issue_by_number(number, cur_win)
     -- if we are already displaying this issue, just open that win, don't spam
     -- neovim with multiple issue buffers of the same issue.
-    local buf_name = "issue #" .. number
+    local buf_name = "issue://" .. number
     for _, win in ipairs(vim.api.nvim_list_wins()) do
         local buf = vim.api.nvim_win_get_buf(win)
-        local name = lib_path.basename(vim.api.nvim_buf_get_name(buf))
+        local name = vim.api.nvim_buf_get_name(buf)
         if buf_name == name then
             vim.api.nvim_set_current_win(win)
             return
