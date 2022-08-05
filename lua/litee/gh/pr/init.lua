@@ -294,7 +294,7 @@ end
 -- once picked a new tab is created and the the pr details and commits are
 -- populated in a tree for this tab.
 function M.open_pull(args)
-    if args["args"] ~= "" then
+    if args and args["args"] ~= "" then
         M.open_pull_by_number(args["args"])
         return
     end
