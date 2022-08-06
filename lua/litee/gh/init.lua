@@ -204,6 +204,15 @@ local function register_git_buffer_completion()
     })
 end
 
+function register_default_highlights()
+    if vim.fn.hlexists("GHThreadSep") == 0 then
+        vim.cmd("hi link GHThreadSep Pmenu")
+    end
+    if vim.fn.hlexists("GHThreadSepAlt") == 0 then
+        vim.cmd("hi link GHThreadSepAlt Pmenu")
+    end
+end
+
 function M.setup(user_config)
     if not pcall(require, "litee.lib") then
         lib_notify.notify_popup_with_timeout("Cannot start litee-gh without the litee.lib library.", 1750, "error")
@@ -230,6 +239,7 @@ function M.setup(user_config)
     register_pr_component()
     register_pr_files_component()
     register_pr_review_component()
+    register_default_highlights()
     commands.setup()
 end
 

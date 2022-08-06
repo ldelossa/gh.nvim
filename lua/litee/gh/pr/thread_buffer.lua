@@ -40,9 +40,6 @@ local function reset_state()
 end
 
 local symbols = {
-    top =    "╭",
-    left =   "│",
-    bottom = "╰",
     tab = "  ",
 }
 
@@ -101,15 +98,14 @@ end
 
 -- namespace we'll use for extmarks that help us track comments.
 local ns = vim.api.nvim_create_namespace("thread_buffer")
+local hi_ns = vim.api.nvim_create_namespace("thread_buffer_highlights")
 
 local function _win_settings_on()
-    vim.api.nvim_win_set_option(0, "showbreak", "│")
     vim.api.nvim_win_set_option(0, 'winhighlight', 'NonText:Normal')
     vim.api.nvim_win_set_option(0, 'wrap', true)
     vim.api.nvim_win_set_option(0, 'colorcolumn', "0")
 end
 local function _win_settings_off()
-    vim.api.nvim_win_set_option(0, "showbreak", "")
     vim.api.nvim_win_set_option(0, 'winhighlight', 'NonText:NonText')
     vim.api.nvim_win_set_option(0, 'wrap', true)
     vim.api.nvim_win_set_option(0, 'colorcolumn', "0")
@@ -218,7 +214,7 @@ local function render_comment(comment, outdated)
     end
 
     local author = comment.comment["author"]["login"]
-    local title = string.format("%s %s  %s", symbols.top, config.icon_set["Account"], author)
+    local title = string.format("%s %s commented on %s ", config.icon_set["Account"], author, comment.comment["updatedAt"])
     if outdated then
         title = title .. " [outdated]"
     elseif comment.comment["state"] == "PENDING" then
@@ -226,15 +222,14 @@ local function render_comment(comment, outdated)
     end
     table.insert(lines, title)
 
-    table.insert(lines, symbols.left)
-    for _, line in ipairs(parse_comment_body(comment.comment["body"], true)) do
+    table.insert(lines, "")
+    for _, line in ipairs(parse_comment_body(comment.comment["body"], false)) do
         table.insert(lines, line)
     end
-    table.insert(lines, symbols.left)
     if reaction_string ~= "" then
-        table.insert(lines, symbols.left .. reaction_string)
+        table.insert(lines, "")
+        table.insert(lines,  reaction_string)
     end
-    table.insert(lines, symbols.bottom)
 
     return lines
 end
@@ -290,8 +285,8 @@ end
 --
 -- the returned function expects the global state to be passed to it and will 
 -- update the state's buffers accordingly.
-function restore_thread(thread_id, displayed_thread)
-    if 
+local function restore_thread(thread_id, displayed_thread)
+    if
         displayed_thread == nil or
         displayed_thread.buffer ~= state.buf or
         displayed_thread.thread_id ~= thread_id or
@@ -302,7 +297,7 @@ function restore_thread(thread_id, displayed_thread)
     end
 
     local cursor = vim.api.nvim_win_get_cursor(displayed_thread.win)
-    
+
     local has_content
     local _, text_area_lines = extract_text()
     if text_area_lines == nil then
@@ -318,7 +313,7 @@ function restore_thread(thread_id, displayed_thread)
         return function(_) lib_util.safe_cursor_reset(displayed_thread.win, cursor) end
     end
 
-    return function(state) 
+    return function(state)
         local new_buf_end = state.buffer_end + #text_area_lines
         vim.api.nvim_buf_set_lines(state.buf, state.text_area_off, new_buf_end, false, text_area_lines)
         state.buffer_end = new_buf_end
@@ -328,7 +323,7 @@ end
 
 -- write_preview grabs the buffer lines the thread refers to and writes a preview
 -- of these threads into buffer_lines.
-function write_preview(thread, buffer_lines, side)
+local function write_preview(thread, buffer_lines, side, lines_to_highlight, hi)
     local thread_source_lines = extract_thread_lines(thread)
     -- grab source code buffer for preview
     local buf = nil
@@ -357,10 +352,12 @@ function write_preview(thread, buffer_lines, side)
         then
             start_line = start_line - 3
         end
-        table.insert(buffer_lines, symbols.left)
+        table.insert(buffer_lines, "")
+        table.insert(lines_to_highlight, {#buffer_lines, hi})
         local lines = vim.api.nvim_buf_get_lines(buf, start_line, end_line, true)
         for i, preview_line in ipairs(lines) do
-            table.insert(buffer_lines, string.format("%s %s %s %s", symbols.left, (start_line + i), "▏", preview_line))
+            table.insert(buffer_lines, string.format("%s %s %s", (start_line + i), "▏", preview_line))
+            table.insert(lines_to_highlight, {#buffer_lines, hi})
         end
     end
 end
@@ -399,6 +396,7 @@ function M.render_thread(thread_id, n_of, displayed_thread, side)
     local thread = s.pull_state.review_threads_by_id[thread_id]
 
     local buffer_lines = {}
+    local lines_to_highlight = {}
 
     -- requested thread to render doesn't exist, it could have been deleted.
     if thread == nil then
@@ -427,36 +425,56 @@ function M.render_thread(thread_id, n_of, displayed_thread, side)
     end
 
     -- render thread header
-    table.insert(buffer_lines, string.format("%s %s  Thread [%d/%d]", symbols.top, config.icon_set["MultiComment"], n_of[1], n_of[2]))
-    table.insert(buffer_lines, string.format("%s %s  Author: %s", symbols.left, config.icon_set["Account"], root_comment.comment["author"]["login"]))
-    table.insert(buffer_lines, string.format("%s %s  Path: %s:%d", symbols.left, config.icon_set["File"], thread.thread["path"], line))
-    table.insert(buffer_lines, string.format("%s %s  Resolved: %s", symbols.left, config.icon_set["CheckAll"], thread.thread["isResolved"]))
-    table.insert(buffer_lines, string.format("%s %s  Outdated: %s", symbols.left, config.icon_set["History"], thread.thread["isOutdated"]))
-    table.insert(buffer_lines, string.format("%s %s  Created: %s", symbols.left, config.icon_set["Calendar"], root_comment.comment["createdAt"]))
-    table.insert(buffer_lines, string.format("%s %s  Last Updated: %s", symbols.left, config.icon_set["Calendar"], root_comment.comment["updatedAt"]))
+    local hi = config.config.highlights["thread_separator"]
+    table.insert(buffer_lines, string.format("%s  Thread [%d/%d]",  config.icon_set["MultiComment"], n_of[1], n_of[2]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("%s  Author: %s",  config.icon_set["Account"], root_comment.comment["author"]["login"]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("%s  Path: %s:%d",  config.icon_set["File"], thread.thread["path"], line))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("%s  Resolved: %s",  config.icon_set["CheckAll"], thread.thread["isResolved"]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("%s  Outdated: %s",  config.icon_set["History"], thread.thread["isOutdated"]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("%s  Created: %s",  config.icon_set["Calendar"], root_comment.comment["createdAt"]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("%s  Last Updated: %s",  config.icon_set["Calendar"], root_comment.comment["updatedAt"]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
     -- preview in header
-    write_preview(thread, buffer_lines, side)
-    table.insert(buffer_lines, symbols.left)
-    table.insert(buffer_lines, string.format("%s (submit: %s)(comment actions: %s)(un/resolve: %s)", symbols.bottom, config.config.keymaps.submit_comment, config.config.keymaps.actions, config.config.keymaps.resolve_thread))
+    write_preview(thread, buffer_lines, side, lines_to_highlight, hi)
+    table.insert(buffer_lines, "")
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("(submit: %s)(comment actions: %s)(un/resolve: %s)", config.config.keymaps.submit_comment, config.config.keymaps.actions, config.config.keymaps.resolve_thread))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
     table.insert(buffer_lines, "")
 
     -- render root comment
     local root_comment_lines = render_comment(root_comment, thread.thread["isOutdated"])
+    hi = config.config.highlights["thread_separator_alt"]
     for _, l in ipairs(root_comment_lines) do
         table.insert(buffer_lines, l)
+        table.insert(lines_to_highlight, {#buffer_lines, hi})
     end
     -- mark end of root comment
-    table.insert(marks_to_create, {#buffer_lines, root_comment})
+    table.insert(marks_to_create, {#buffer_lines-1, root_comment})
+    table.insert(buffer_lines, "")
 
     for i, reply in ipairs(thread.children) do
         if i == 1 then
            goto continue
         end
-        local reply_lines = render_comment(reply)
-        for _, l in ipairs(reply_lines) do
-            table.insert(buffer_lines, l)
+        if i % 2 == 0 then
+            hi = config.config.highlights["thread_separator"]
+        else
+            hi = config.config.highlights["thread_separator_alt"]
         end
-        table.insert(marks_to_create, {#buffer_lines, reply})
+        local reply_lines = render_comment(reply)
+        for _, line in ipairs(reply_lines) do
+            table.insert(buffer_lines, line)
+            table.insert(lines_to_highlight, {#buffer_lines, hi})
+        end
+        table.insert(marks_to_create, {#buffer_lines-1, reply})
+        table.insert(buffer_lines, "")
         ::continue::
     end
 
@@ -481,6 +499,19 @@ function M.render_thread(thread_id, n_of, displayed_thread, side)
             {}
         )
         state.marks_to_comments[id] = m[2]
+    end
+
+    -- marks to create highlighted separators
+    for _, l in ipairs(lines_to_highlight) do
+        vim.api.nvim_buf_set_extmark(
+            state.buf,
+            hi_ns,
+            l[1]-1,
+            0,
+            {
+                line_hl_group = l[2]
+            }
+        )
     end
 
     -- set some additional book keeping state.
@@ -799,7 +830,7 @@ end
 
 -- comment_actions displays a list of actions for a given comment.
 function M.comment_actions()
-    notification = comment_under_cursor()
+    local notification = comment_under_cursor()
     if notification == nil then
         return
     end
