@@ -420,3 +420,23 @@ M.config = {
         toggle_unread = "u"
     },
 }
+
+====================================================================================
+Highlights                                                           *gh-highlights*
+
+The following highlights are defined and can be declared by themers. If they
+are not declared GH.nvim will set a default which is also listed below.
+
+Highlight               Purpose                                 Default
+*******************************************************************************
+
+GHThreadSep             The fg and bg highlight used for a      Pmenu 
+                        threaded message.
+
+GHThreadSepAlt          Similar to above but can be used as     Pmenu
+                        an alternating color between messages 
+                        in a threaded message. For example in 
+                        a threaded message with 3 messages the 
+                        first will use the GHThreadSep highlight, 
+                        second will use GHThreadSepAlt and third 
+                        will use GHThreadSep.

@@ -1,5 +1,3 @@
-local lib_icons     = require('litee.lib.icons')
-local lib_path      = require('litee.lib.util.path')
 local lib_util      = require('litee.lib.util')
 
 local ghcli         = require('litee.gh.ghcli')
@@ -11,20 +9,11 @@ local issues        = require('litee.gh.issues')
 local M = {}
 
 local symbols = {
-    top =    "╭",
-    left =   "│",
-    bottom = "╰",
     tab = "  ",
 }
 
 M.state_by_sha = {}
 M.state_by_buf = {}
-
-local callbacks = {}
-
-function M.set_callbacks(cbs)
-    callbacks = cbs
-end
 
 function M.on_refresh()
     for sha, _ in pairs(M.state_by_sha) do
@@ -113,14 +102,12 @@ function M.load_commit(sha, on_load)
 end
 
 local function _win_settings_on()
-    vim.api.nvim_win_set_option(0, "showbreak", "│")
     vim.api.nvim_win_set_option(0, 'winhighlight', 'NonText:Normal')
     vim.api.nvim_win_set_option(0, 'wrap', true)
     vim.api.nvim_win_set_option(0, 'colorcolumn', "0")
     vim.api.nvim_win_set_option(0, 'cursorline', false)
 end
 local function _win_settings_off()
-    vim.api.nvim_win_set_option(0, "showbreak", "")
     vim.api.nvim_win_set_option(0, 'winhighlight', 'NonText:NonText')
     vim.api.nvim_win_set_option(0, 'wrap', true)
     vim.api.nvim_win_set_option(0, 'colorcolumn', "0")
@@ -220,18 +207,17 @@ local function render_comment(comment)
     local lines = {}
     local reaction_string = map_reactions(comment)
     local author = comment["user"]["login"]
-    local title = string.format("%s %s  %s", symbols.top, config.icon_set["Account"], author)
+    local title = string.format("%s %s commented on %s ", config.icon_set["Account"], author, comment["updated_at"])
     table.insert(lines, title)
 
-    table.insert(lines, symbols.left)
-    for _, line in ipairs(parse_comment_body(comment["body"], true)) do
+    table.insert(lines, "")
+    for _, line in ipairs(parse_comment_body(comment["body"], false)) do
         table.insert(lines, line)
     end
-    table.insert(lines, symbols.left)
     if reaction_string ~= "" then
-        table.insert(lines, symbols.left .. reaction_string)
+        table.insert(lines, "")
+        table.insert(lines, reaction_string)
     end
-    table.insert(lines, symbols.bottom)
 
     return lines
 end
@@ -248,7 +234,7 @@ local function restore_draft(state)
 
     -- extract any text which may be in the commit's states text field
     if state.buf == nil or state.text_area_off == nil then
-        return function(s)
+        return function(_)
             -- reset the cursor if we can.
             if cursor ~= nil then
                 lib_util.safe_cursor_reset(state.win, cursor)
@@ -269,7 +255,7 @@ local function restore_draft(state)
 
     -- if has no content, nothing to restore return just a cursor reset
     if not has_content then
-        return function(s)
+        return function(_)
             if cursor ~= nil then
                 lib_util.safe_cursor_reset(state.win, cursor)
             end
@@ -307,28 +293,45 @@ function M.render_commit(sha)
 
     -- bookkeep the extmarks we need to create
     local marks_to_create = {}
+    local lines_to_highlight = {}
 
     -- render PR header
-    table.insert(buffer_lines, string.format("%s %s  %s", symbols.top, config.icon_set["GitCommit"], state.commit["sha"]))
-    table.insert(buffer_lines, string.format("%s %s  Author: %s", symbols.left, config.icon_set["Account"], state.commit["author"]["login"]))
-    table.insert(buffer_lines, string.format("%s %s  Commiter: %s", symbols.left, config.icon_set["Account"], state.commit["committer"]["login"]))
-    table.insert(buffer_lines, string.format("%s %s  Created: %s", symbols.left, config.icon_set["Calendar"], state.commit["commit"]["committer"]["date"]))
-    table.insert(buffer_lines, symbols.left)
-    local body_lines = parse_comment_body(state.commit["commit"]["message"], true)
+    local hi = config.config.highlights["thread_separator"]
+    table.insert(buffer_lines, string.format("%s  %s",  config.icon_set["GitCommit"], state.commit["sha"]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("%s  Author: %s",  config.icon_set["Account"], state.commit["author"]["login"]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("%s  Commiter: %s",  config.icon_set["Account"], state.commit["committer"]["login"]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("%s  Created: %s",  config.icon_set["Calendar"], state.commit["commit"]["committer"]["date"]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, "")
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    local body_lines = parse_comment_body(state.commit["commit"]["message"], false)
     for _, l in ipairs(body_lines) do
         table.insert(buffer_lines, l)
+        table.insert(lines_to_highlight, {#buffer_lines, hi})
     end
-    table.insert(buffer_lines, symbols.left)
-    table.insert(buffer_lines, string.format("%s (submit: %s)(comment actions: %s)", symbols.bottom, config.config.keymaps.submit_comment, config.config.keymaps.actions))
+    table.insert(buffer_lines, "")
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("(submit: %s)(comment actions: %s)",  config.config.keymaps.submit_comment, config.config.keymaps.actions))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
     table.insert(marks_to_create, {#buffer_lines, state.commit})
 
     table.insert(buffer_lines, "")
-    for _, c in ipairs(comments) do
+    for i, c in ipairs(comments) do
+        if i % 2 == 0 then
+            hi = config.config.highlights["thread_separator"]
+        else
+            hi = config.config.highlights["thread_separator_alt"]
+        end
         local c_lines = render_comment(c)
         for _, line in ipairs(c_lines) do
             table.insert(buffer_lines, line)
+            table.insert(lines_to_highlight, {#buffer_lines, hi})
         end
         table.insert(marks_to_create, {#buffer_lines, c})
+        table.insert(buffer_lines, "")
     end
 
     -- leave room for the user to reply.
@@ -356,6 +359,20 @@ function M.render_commit(sha)
         state.marks_to_comments[id] = m[2]
     end
     state.buffer_end = #buffer_lines
+
+    -- marks to create highlighted separators
+    state.hi_ns = vim.api.nvim_create_namespace("commit-highlights-" .. sha)
+    for _, l in ipairs(lines_to_highlight) do
+        vim.api.nvim_buf_set_extmark(
+            state.buf,
+            state.hi_ns,
+            l[1]-1,
+            0,
+            {
+                line_hl_group = l[2]
+            }
+        )
+    end
 
     M.state_by_buf[buf] = state
 

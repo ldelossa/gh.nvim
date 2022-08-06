@@ -1,5 +1,3 @@
-local lib_icons     = require('litee.lib.icons')
-local lib_path      = require('litee.lib.util.path')
 local lib_util      = require('litee.lib.util')
 
 local ghcli         = require('litee.gh.ghcli')
@@ -10,9 +8,6 @@ local config        = require('litee.gh.config')
 local M = {}
 
 local symbols = {
-    top =    "╭",
-    left =   "│",
-    bottom = "╰",
     tab = "  ",
 }
 
@@ -54,7 +49,9 @@ local function new_issue_state()
         -- the comments associated with the issues
         comments = nil,
         -- namespace for extmarks
-        ns = nil
+        ns = nil,
+        -- namespace for highlights
+        hi = nil
     }
 end
 
@@ -113,13 +110,11 @@ function M.load_issue(number, on_load)
 end
 
 local function _win_settings_on()
-    vim.api.nvim_win_set_option(0, "showbreak", "│")
     vim.api.nvim_win_set_option(0, 'winhighlight', 'NonText:Normal')
     vim.api.nvim_win_set_option(0, 'wrap', true)
     vim.api.nvim_win_set_option(0, 'colorcolumn', "0")
 end
 local function _win_settings_off()
-    vim.api.nvim_win_set_option(0, "showbreak", "")
     vim.api.nvim_win_set_option(0, 'winhighlight', 'NonText:NonText')
     vim.api.nvim_win_set_option(0, 'wrap', true)
     vim.api.nvim_win_set_option(0, 'colorcolumn', "0")
@@ -219,18 +214,17 @@ local function render_comment(comment)
     local lines = {}
     local reaction_string = map_reactions(comment)
     local author = comment["user"]["login"]
-    local title = string.format("%s %s  %s", symbols.top, config.icon_set["Account"], author)
+    local title = string.format("%s %s commented on %s ", config.icon_set["Account"], author, comment["updated_at"])
     table.insert(lines, title)
 
-    table.insert(lines, symbols.left)
-    for _, line in ipairs(parse_comment_body(comment["body"], true)) do
+    table.insert(lines, "")
+    for _, line in ipairs(parse_comment_body(comment["body"], false)) do
         table.insert(lines, line)
     end
-    table.insert(lines, symbols.left)
     if reaction_string ~= "" then
-        table.insert(lines, symbols.left .. reaction_string)
+        table.insert(lines, "")
+        table.insert(lines, reaction_string)
     end
-    table.insert(lines, symbols.bottom)
 
     return lines
 end
@@ -247,7 +241,7 @@ local function restore_draft(state)
 
     -- extract any text which may be in the issue's states text field
     if state.buf == nil or state.text_area_off == nil then
-        return function(s)
+        return function(_)
             -- reset the cursor if we can.
             if cursor ~= nil then
                 lib_util.safe_cursor_reset(state.win, cursor)
@@ -268,7 +262,7 @@ local function restore_draft(state)
 
     -- if has no content, nothing to restore return just a cursor reset
     if not has_content then
-        return function(s)
+        return function(_)
             if cursor ~= nil then
                 lib_util.safe_cursor_reset(state.win, cursor)
             end
@@ -306,6 +300,7 @@ function M.render_issue(number)
 
     -- bookkeep the extmarks we need to create
     local marks_to_create = {}
+    local lines_to_highlight = {}
 
     -- render PR header
     local type = ""
@@ -314,27 +309,45 @@ function M.render_issue(number)
     else
         type = "Issue"
     end
-    table.insert(buffer_lines, string.format("%s %s  %s %s%s", symbols.top, config.icon_set["GitIssue"], type, config.icon_set["Number"], state.issue["number"]))
-    table.insert(buffer_lines, string.format("%s %s  Author: %s", symbols.left, config.icon_set["Account"], state.issue["user"]["login"]))
-    table.insert(buffer_lines, string.format("%s %s  Created: %s", symbols.left, config.icon_set["Calendar"], state.issue["created_at"]))
-    table.insert(buffer_lines, string.format("%s %s  Last Updated: %s", symbols.left, config.icon_set["Calendar"], state.issue["updated_at"]))
-    table.insert(buffer_lines, string.format("%s %s  Title: %s", symbols.left, config.icon_set["Pencil"], state.issue["title"]))
-    table.insert(buffer_lines, symbols.left)
-    local body_lines = parse_comment_body(state.issue["body"], true)
+    local hi = config.config.highlights["thread_separator"]
+    table.insert(buffer_lines, string.format("%s  %s %s%s",  config.icon_set["GitIssue"], type, config.icon_set["Number"], state.issue["number"]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("%s  Author: %s",  config.icon_set["Account"], state.issue["user"]["login"]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("%s  Created: %s",  config.icon_set["Calendar"], state.issue["created_at"]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("%s  Last Updated: %s", config.icon_set["Calendar"], state.issue["updated_at"]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("%s  Title: %s",  config.icon_set["Pencil"], state.issue["title"]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, "")
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    local body_lines = parse_comment_body(state.issue["body"], false)
     for _, l in ipairs(body_lines) do
         table.insert(buffer_lines, l)
+        table.insert(lines_to_highlight, {#buffer_lines, hi})
     end
-    table.insert(buffer_lines, symbols.left)
-    table.insert(buffer_lines, string.format("%s (submit: %s)(comment actions: %s)", symbols.bottom, config.config.keymaps.submit_comment, config.config.keymaps.actions))
+    table.insert(buffer_lines, "")
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("(submit: %s)(comment actions: %s)",  config.config.keymaps.submit_comment, config.config.keymaps.actions))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
     table.insert(marks_to_create, {#buffer_lines, state.issue})
 
     table.insert(buffer_lines, "")
-    for _, c in ipairs(comments) do
+    for i, c in ipairs(comments) do
+        if i % 2 == 0 then
+            hi = config.config.highlights["thread_separator"]
+        else
+            hi = config.config.highlights["thread_separator_alt"]
+        end
         local c_lines = render_comment(c)
         for _, line in ipairs(c_lines) do
             table.insert(buffer_lines, line)
+            -- highlight message bounds-1 to create visualize separation
+            table.insert(lines_to_highlight, {#buffer_lines, hi})
         end
-        table.insert(marks_to_create, {#buffer_lines, c})
+        table.insert(marks_to_create, {#buffer_lines-1, c})
+        table.insert(buffer_lines, "")
     end
 
     -- leave room for the user to reply.
@@ -350,6 +363,7 @@ function M.render_issue(number)
     vim.api.nvim_buf_set_lines(buf, 0, #buffer_lines, false, buffer_lines)
     M.set_modifiable(false, buf)
 
+    -- marks to track where comments are
     state.ns = vim.api.nvim_create_namespace("issue-" .. number)
     for _, m in ipairs(marks_to_create) do
         local id = vim.api.nvim_buf_set_extmark(
@@ -361,6 +375,21 @@ function M.render_issue(number)
         )
         state.marks_to_comments[id] = m[2]
     end
+
+    -- marks to create highlighted separators
+    state.hi = vim.api.nvim_create_namespace("issue-highlights-" .. number)
+    for _, l in ipairs(lines_to_highlight) do
+        vim.api.nvim_buf_set_extmark(
+            buf,
+            state.hi,
+            l[1]-1,
+            0,
+            {
+                line_hl_group = l[2]
+            }
+        )
+    end
+
     state.buffer_end = #buffer_lines
 
     M.state_by_buf[buf] = state
@@ -537,6 +566,10 @@ function M.submit()
        state.editing_comment = nil
     elseif state.editing_issue ~= nil then
        local out = update_iss_body(body)
+       if out == nil then
+          lib_notify.notify_popup_with_timeout("Failed to update issue body.", 7500, "error")
+          return
+       end
        return
     else
        local out = create(state, body)

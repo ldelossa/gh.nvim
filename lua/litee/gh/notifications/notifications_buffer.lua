@@ -24,23 +24,13 @@ local state = {
     show_unread = false
 }
 
-local function reset_state()
-    state.buf = nil
-    state.notifications_to_marks = nil
-end
-
-local symbols = {
-    top =    "╭",
-    left =   "│",
-    bottom = "╰",
-    tab = "  ",
-}
-
 local ns = vim.api.nvim_create_namespace("notification_buffer")
+local hi_ns = vim.api.nvim_create_namespace("notification_buffer-highlights")
 
 local function _win_settings_on()
     vim.api.nvim_win_set_option(0, 'wrap', false)
     vim.api.nvim_win_set_option(0, 'number', false)
+    vim.api.nvim_win_set_option(0, 'cc', "0")
 end
 
 local function extract_issue_number(notification)
@@ -55,7 +45,7 @@ end
 -- the user's cursor.
 local function notification_under_cursor()
     local cursor = vim.api.nvim_win_get_cursor(0)
-    local marks  = vim.api.nvim_buf_get_extmarks(0, ns, {cursor[1]-1, 0}, {-1, 0}, {
+    local marks  = vim.api.nvim_buf_get_extmarks(0, ns, {cursor[1]-1, 0}, {cursor[1]-1, 0}, {
         limit = 1
     })
     if #marks == 0 then
@@ -91,7 +81,7 @@ local function setup_buffer()
     end
 
     -- set buf options
-    vim.api.nvim_buf_set_name(state.buf, "github notifications")
+    vim.api.nvim_buf_set_name(state.buf, "notifications://")
     vim.api.nvim_buf_set_option(state.buf, 'bufhidden', 'hide')
     vim.api.nvim_buf_set_option(state.buf, 'filetype', 'notifications')
     vim.api.nvim_buf_set_option(state.buf, 'buftype', 'nofile')
@@ -176,16 +166,21 @@ function M.render_notifications(notifications)
 
     local marks_to_create = {}
     local buffer_lines = {}
+    local lines_to_highlight = {}
 
     local repo = ghcli.get_repo_name_owner()
 
     -- render notification buffer header
-    table.insert(buffer_lines, string.format("%s %s  Notifications", symbols.top, config.icon_set["Notification"]))
-    table.insert(buffer_lines, string.format("%s %s  Owner: %s", symbols.left, config.icon_set["Account"], repo["owner"]["login"]))
-    table.insert(buffer_lines, string.format("%s %s  Repo: %s", symbols.left, config.icon_set["GitRepo"], repo["name"]))
-    table.insert(buffer_lines, string.format("%s %s  Count: %s", symbols.left, config.icon_set["Number"], #notifications))
-    table.insert(buffer_lines, string.format("%s (open: %s)(notification actions: %s)(preview issue: %s)(select: %s)(clear selection: %s)(toggle unread: %s)",
-        symbols.bottom,
+    local hi = config.config.highlights["thread_separator"]
+    table.insert(buffer_lines, string.format("%s  Notifications",  config.icon_set["Notification"]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("%s  Owner: %s",  config.icon_set["Account"], repo["owner"]["login"]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("%s  Repo: %s",  config.icon_set["GitRepo"], repo["name"]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("%s  Count: %s",  config.icon_set["Number"], #notifications))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("(open: %s)(notification actions: %s)(preview issue: %s)(select: %s)(clear selection: %s)(toggle unread: %s)",
         config.config.keymaps.open,
         config.config.keymaps.actions,
         config.config.keymaps.details,
@@ -195,8 +190,15 @@ function M.render_notifications(notifications)
     -- add an extmark here associated with nil so we don't try to preview when
     -- cursor is in header.
     table.insert(marks_to_create, {#buffer_lines-1, nil})
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, "")
 
-    for _, noti in ipairs(notifications) do
+    for i, noti in ipairs(notifications) do
+        if i % 2 == 0 then
+            hi = config.config.highlights["thread_separator"]
+        else
+            hi = config.config.highlights["thread_separator_alt"]
+        end
         local type_ico = config.icon_set["GitIssue"]
         if noti["subject"]["type"] == "PullRequest" then
             type_ico = config.icon_set["GitPullRequest"]
@@ -206,15 +208,17 @@ function M.render_notifications(notifications)
             read_ico = config.icon_set["Circle"]
         end
         local issue_number = extract_issue_number(noti)
-        table.insert(buffer_lines, symbols.top)
         -- if this notification is in our selection state, set a check mark
         if state.selected_notifications[noti.id] ~= nil then
-            table.insert(buffer_lines, string.format("%s %s  %s  %s  %s %s   %s", symbols.left, read_ico, type_ico, config.icon_set["Check"], "#"..issue_number, noti["subject"]["title"], noti["reason"]))
+            table.insert(buffer_lines, string.format("%s  %s  %s  %s %s   %s",  read_ico, type_ico, config.icon_set["Check"], "#"..issue_number, noti["subject"]["title"], noti["reason"]))
+            table.insert(lines_to_highlight, {#buffer_lines, hi})
+            table.insert(marks_to_create, {#buffer_lines-1, noti})
         else
-            table.insert(buffer_lines, string.format("%s %s  %s  %s %s   %s", symbols.left, read_ico, type_ico, "#"..issue_number, noti["subject"]["title"], noti["reason"]))
+            table.insert(buffer_lines, string.format("%s  %s  %s %s   %s",  read_ico, type_ico, "#"..issue_number, noti["subject"]["title"], noti["reason"]))
+            table.insert(lines_to_highlight, {#buffer_lines, hi})
+            table.insert(marks_to_create, {#buffer_lines-1, noti})
         end
-        table.insert(buffer_lines, symbols.bottom)
-        table.insert(marks_to_create, {#buffer_lines-1, noti})
+        table.insert(buffer_lines, "")
     end
 
     -- write all buffer lines to the buffer
@@ -232,6 +236,19 @@ function M.render_notifications(notifications)
             {}
         )
         state.marks_to_notifications[id] = m[2]
+    end
+
+    -- marks to create highlighted separators
+    for _, l in ipairs(lines_to_highlight) do
+        vim.api.nvim_buf_set_extmark(
+            state.buf,
+            hi_ns,
+            l[1]-1,
+            0,
+            {
+                line_hl_group = l[2]
+            }
+        )
     end
 
     state.notifications = notifications
