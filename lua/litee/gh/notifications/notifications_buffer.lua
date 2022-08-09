@@ -221,10 +221,22 @@ function M.render_notifications(notifications)
         table.insert(buffer_lines, "")
     end
 
+    local cursors_to_restore = {}
+    for _, win in ipairs(vim.api.nvim_list_wins()) do
+        if vim.api.nvim_win_get_buf(win) == state.buf then
+            table.insert(cursors_to_restore, {win, vim.api.nvim_win_get_cursor(win)})
+        end
+    end
+
     -- write all buffer lines to the buffer
     M.set_modifiable(true)
+    vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, {}) -- truncate first
     vim.api.nvim_buf_set_lines(state.buf, 0, #buffer_lines, false, buffer_lines)
     M.set_modifiable(false)
+
+    for _, c in ipairs(cursors_to_restore) do
+        lib_util.safe_cursor_reset(c[1], c[2])
+    end
 
     -- write out all our marks and associate marks with noti objects.
     for _, m in ipairs(marks_to_create) do
