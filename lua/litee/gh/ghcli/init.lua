@@ -1,5 +1,6 @@
 local graphql = require('litee.gh.ghcli.graphql')
 local lib_notify = require('litee.lib.notify')
+local debug = require('litee.gh.debug')
 
 local M = {}
 
@@ -25,13 +26,16 @@ end
 local function gh_exec(cmd, no_json_decode)
     local output = vim.fn.system(cmd)
     if vim.v.shell_error ~= 0 then
+        debug.log("[gh] cmd: " .. cmd .. " out:\n" .. vim.inspect(output), "error")
         return nil
     end
+    debug.log("[gh] cmd: " .. cmd .. " out:\n" .. vim.inspect(output), "info")
     if no_json_decode then
         return output
     end
     local tbl = json_decode_safe(output)
     if tbl["message"] ~= nil then
+        debug.log("[gh] cmd: " .. cmd .. " out:\n" .. vim.inspect(tbl), "error")
         return nil
     end
     return tbl, ""
@@ -47,6 +51,11 @@ local function check_error(data)
         return data["message"]
     end
     return false
+end
+
+local function debug_fmt_args(args)
+    local cmd = table.concat(args, " ")
+    return "gh " .. cmd
 end
 
 local function async_request(args, on_read, paginate, page, paged_data)
@@ -77,6 +86,7 @@ local function async_request(args, on_read, paginate, page, paged_data)
     )
     vim.loop.read_start(stdout, function(err, data)
         if err then
+            debug.log("[gh] cmd: " .. debug_fmt_args(args) .. " out:\n" .. vim.inspect(err), "error")
             return err, nil
         end
         if data then
@@ -86,6 +96,7 @@ local function async_request(args, on_read, paginate, page, paged_data)
             data = json_decode_safe(buffer)
             err = check_error(data)
             if err ~= false then
+                debug.log("[gh] cmd: " .. debug_fmt_args(args) .. " out:\n" .. vim.inspect(err), "error")
                 vim.schedule(function() on_read(err, nil) end)
                 return
             end
@@ -99,10 +110,12 @@ local function async_request(args, on_read, paginate, page, paged_data)
             if paginate then
                 if #data > 0 then
                     -- paginate
+                    debug.log("[gh] cmd: " .. debug_fmt_args(args) .. " out:\n" .. vim.inspect(data), "info")
                     async_request(args, on_read, paginate, page+1, paged_data)
                     return
                 end
             end
+            debug.log("[gh] cmd: " .. debug_fmt_args(args) .. " out:\n" .. vim.inspect(data), "info")
             vim.schedule(function() on_read(false, paged_data) end)
         end
     end)
@@ -110,12 +123,14 @@ local function async_request(args, on_read, paginate, page, paged_data)
         vim.schedule(
             function()
                 if err then
+                    debug.log("[gh] cmd: " .. debug_fmt_args(args) .. " out:\n" .. vim.inspect(err), "error")
                     return err, nil
                 end
                 if data ~= nil then
                     data = json_decode_safe(buffer)
                     err = check_error(data)
                     if err ~= false then
+                        debug.log("[gh] cmd: " .. debug_fmt_args(args) .. " out:\n" .. vim.inspect(err), "error")
                         vim.schedule(function() on_read(err, nil) end)
                         return
                     end
