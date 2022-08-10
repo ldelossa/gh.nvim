@@ -37,7 +37,7 @@ function M.log(msg, level)
         msg_split[1] = "[" .. level .. "] " .. msg_split[1]
         if c.config.debug_logging then
            local lc = vim.api.nvim_buf_line_count(debug_buffer)
-           vim.api.nvim_buf_set_lines(debug_buffer, lc-1, (lc+#msg_split)-1, false, msg_split)
+           vim.api.nvim_buf_set_lines(debug_buffer, lc, (lc+#msg_split), false, msg_split)
         end
     end)
 end
