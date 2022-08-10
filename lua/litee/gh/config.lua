@@ -26,6 +26,9 @@ M.config = {
         thread_separator = "GHThreadSep",
         thread_separator_alt = "GHThreadSepAlt"
     },
+    -- log all git and gh cli actions to a buffer.
+    -- the buffer can be opened with "GHOpenDebugBuffer".
+    debug_logging = false,
     -- defines keymaps in gh.nvim buffers.
     keymaps = {
         -- when inside a gh.nvim panel, this key will open a node if it has

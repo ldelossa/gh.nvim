@@ -3,6 +3,7 @@ local dv = require('litee.gh.pr.diff_view')
 local noti = require('litee.gh.notifications')
 local pr_handlers = require('litee.gh.pr.handlers')
 local issues = require('litee.gh.issues')
+local debug  = require('litee.gh.debug')
 
 local M = {}
 
@@ -87,6 +88,9 @@ local commands = {
     -- Open a UI displaying all unread notifications for the repo gh.nvim is opened
     -- to.
     {name = "GHNotifications", callback = noti.open_notifications, opts = {}},
+    -- When config["debug_logging"] is set to true, this command will open a buffer
+    -- holding all git and gh cli invocations and their outputs.
+    {name = "GHOpenDebugBuffer", callback = debug.open_debug_buffer, opts = {}},
 }
 
 function M.command_select()
