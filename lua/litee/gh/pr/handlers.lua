@@ -68,11 +68,21 @@ function M.ui_handler(refresh, on_load_ui)
         else
             remote_name = remote
         end
-        -- fetch the remote branch so the commits under review are locally accessible.
-        local out = gitcli.fetch(remote_name, head_branch)
-        if out == nil then
-            lib_notify.notify_popup_with_timeout("Failed to fetch remote branch.", 7500, "error")
+
+        local remote_branch_exists = gitcli.remote_branch_exists(remote_url, head_branch)
+        if remote_branch_exists == nil then
+            lib_notify.notify_popup_with_timeout("Failed to determine if remote branch exists", 7500, "error")
             return
+        end
+
+        if remote_branch_exists then
+            local out = gitcli.fetch(remote_name, head_branch)
+            if out == nil then
+                lib_notify.notify_popup_with_timeout("Failed to fetch remote branch.", 7500, "error")
+                return
+            end
+        else
+            lib_notify.notify_popup_with_timeout("Remote branch no longer exists, cannot fetch it. PR will be opened but certain commits may not be available for checkout.", 7500, "warning")
         end
     end
 

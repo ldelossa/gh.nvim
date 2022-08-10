@@ -106,6 +106,20 @@ function M.remote_exists(remote_url)
     return true, remote
 end
 
+function M.remote_branch_exists(remote_url, branch)
+    local cmd = [[git ls-remote --heads ]] .. remote_url .. " " .. branch
+    local out = git_exec(cmd)
+    if out == nil then
+        return nil
+    end
+
+    if #out == 0 then
+        return false
+    else
+        return true
+    end
+end
+
 function M.git_show_and_write(commit, file, write_to)
     local cmd = string.format([[git show %s:%s > %s]], commit, file, write_to)
     local out = git_exec(cmd)
