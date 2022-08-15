@@ -8,15 +8,17 @@ local level_to_hl = {
     warning = "WarningMsg"
 }
 
-local debug_buffer = (function()
-    if not c.config.debug_logging then
+local debug_buffer = nil
+
+function M.init()
+    if not c.config["debug_logging"] then
         return
     end
     local buf = vim.api.nvim_create_buf(false, false)
-    vim.api.nvim_buf_set_name(buf, "gh.nvim://debug_buffer")
+    vim.api.nvim_buf_set_name(buf, "gh-nvim://debug_buffer")
     vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
-    return buf
-end)()
+    debug_buffer = buf
+end
 
 function M.open_debug_buffer()
     if not c.config.debug_logging then

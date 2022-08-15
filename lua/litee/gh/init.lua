@@ -17,6 +17,7 @@ local noti           = require('litee.gh.notifications')
 local commits        = require('litee.gh.commits')
 -- unused, but must init the global completion function.
 local completion     = require('litee.gh.completion')
+local debug          = require('litee.gh.debug')
 
 -- register_pr_component registers the "pr" litee component.
 --
@@ -241,6 +242,7 @@ function M.setup(user_config)
     register_pr_review_component()
     register_default_highlights()
     commands.setup()
+    debug.init()
 end
 
 function M.refresh()
