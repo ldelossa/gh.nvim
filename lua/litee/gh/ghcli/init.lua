@@ -18,6 +18,11 @@ local function json_decode_safe(output)
     end
 end
 
+local function debug_fmt_args(args)
+    local cmd = table.concat(args, " ")
+    return "gh " .. cmd
+end
+
 -- gh_exec executs the (assumed) gh command which returns json.
 --
 -- if nil is returned the second returned argument is the error output.
@@ -26,16 +31,16 @@ end
 local function gh_exec(cmd, no_json_decode)
     local output = vim.fn.system(cmd)
     if vim.v.shell_error ~= 0 then
-        debug.log("[gh] cmd: " .. cmd .. " out:\n" .. vim.inspect(output), "error")
+        debug.log("[gh] cmd: " .. vim.inspect(cmd) .. " out:\n" .. vim.inspect(output), "error")
         return nil
     end
-    debug.log("[gh] cmd: " .. cmd .. " out:\n" .. vim.inspect(output), "info")
+    debug.log("[gh] cmd: " .. vim.inspect(cmd) .. " out:\n" .. vim.inspect(output), "info")
     if no_json_decode then
         return output
     end
     local tbl = json_decode_safe(output)
     if tbl["message"] ~= nil then
-        debug.log("[gh] cmd: " .. cmd .. " out:\n" .. vim.inspect(tbl), "error")
+        debug.log("[gh] cmd: " .. vim.inspect(cmd) .. " out:\n" .. vim.inspect(tbl), "error")
         return nil
     end
     return tbl, ""
@@ -51,11 +56,6 @@ local function check_error(data)
         return data["message"]
     end
     return false
-end
-
-local function debug_fmt_args(args)
-    local cmd = table.concat(args, " ")
-    return "gh " .. cmd
 end
 
 local function async_request(args, on_read, paginate, page, paged_data)

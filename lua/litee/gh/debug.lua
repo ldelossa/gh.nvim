@@ -17,6 +17,7 @@ function M.init()
     local buf = vim.api.nvim_create_buf(false, false)
     vim.api.nvim_buf_set_name(buf, "gh-nvim://debug_buffer")
     vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
+    vim.api.nvim_buf_set_option(buf, 'swapfile', false)
     debug_buffer = buf
 end
 

@@ -3,10 +3,10 @@ local debug = require('litee.gh.debug')
 local function git_exec(cmd)
     local out = vim.fn.system(cmd)
     if vim.v.shell_error ~= 0 then
-        debug.log("[git] cmd: " .. cmd .. " out:\n" .. vim.inspect(out), "error")
+        debug.log("[git] cmd: " .. vim.inspect(cmd) .. " out:\n" .. vim.inspect(out), "error")
         return nil
     end
-    debug.log("[git] cmd: " .. cmd .. " out:\n" .. vim.inspect(out), "info")
+    debug.log("[git] cmd: " .. vim.inspect(cmd) .. " out:\n" .. vim.inspect(out), "info")
     return out
 end
 
