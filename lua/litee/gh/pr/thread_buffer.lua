@@ -105,11 +105,6 @@ local function _win_settings_on()
     vim.api.nvim_win_set_option(0, 'wrap', true)
     vim.api.nvim_win_set_option(0, 'colorcolumn', "0")
 end
-local function _win_settings_off()
-    vim.api.nvim_win_set_option(0, 'winhighlight', 'NonText:NonText')
-    vim.api.nvim_win_set_option(0, 'wrap', true)
-    vim.api.nvim_win_set_option(0, 'colorcolumn', "0")
-end
 
 -- in_editable_area is used as an auto command to flip the thread_buffer writable
 -- when thec cursor is in the designated text area.
@@ -119,10 +114,8 @@ local function in_editable_area()
         return
     end
     if cursor[1] >= state.text_area_off then
-        _win_settings_off()
         M.set_modifiable(true)
     else
-        _win_settings_on()
         M.set_modifiable(false)
     end
 end
@@ -167,6 +160,10 @@ local function setup_buffer(thread_id)
     vim.api.nvim_create_autocmd({"BufEnter"}, {
         buffer = state.buf,
         callback = require('litee.lib.util.window').set_tree_highlights,
+    })
+    vim.api.nvim_create_autocmd({"BufEnter"}, {
+        buffer = state.buf,
+        callback = _win_settings_on,
     })
 end
 

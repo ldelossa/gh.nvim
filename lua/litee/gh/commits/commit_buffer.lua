@@ -107,11 +107,6 @@ local function _win_settings_on()
     vim.api.nvim_win_set_option(0, 'colorcolumn', "0")
     vim.api.nvim_win_set_option(0, 'cursorline', false)
 end
-local function _win_settings_off()
-    vim.api.nvim_win_set_option(0, 'winhighlight', 'NonText:NonText')
-    vim.api.nvim_win_set_option(0, 'wrap', true)
-    vim.api.nvim_win_set_option(0, 'colorcolumn', "0")
-end
 
 local function in_editable_area(state)
     local cursor = vim.api.nvim_win_get_cursor(0)
@@ -119,10 +114,8 @@ local function in_editable_area(state)
         return
     end
     if cursor[1] >= state.text_area_off then
-        _win_settings_off()
         M.set_modifiable(true, state.buf)
     else
-        _win_settings_on()
         M.set_modifiable(false, state.buf)
     end
 end
@@ -169,6 +162,10 @@ local function setup_buffer(sha)
     vim.api.nvim_create_autocmd({"BufEnter"}, {
         buffer = buf,
         callback = require('litee.lib.util.window').set_tree_highlights,
+    })
+    vim.api.nvim_create_autocmd({"BufEnter"}, {
+        buffer = buf,
+        callback = _win_settings_on,
     })
     return buf
 end
