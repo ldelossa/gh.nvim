@@ -1,5 +1,6 @@
 local lib_util      = require('litee.lib.util')
 
+local lib           = require('litee.gh.lib')
 local ghcli         = require('litee.gh.ghcli')
 local lib_notify    = require('litee.lib.notify')
 local reactions     = require('litee.gh.pr.reactions')
@@ -323,6 +324,9 @@ function M.render_issue(number)
         type = "Issue"
     end
     local hi = config.config.highlights["thread_separator"]
+    local owner, repo = lib.gh_api_issue_repo_owner(state.issue)
+    table.insert(buffer_lines, string.format("%s  Repo: %s/%s",  config.icon_set["GitRepo"], owner, repo))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
     table.insert(buffer_lines, string.format("%s  %s %s%s",  config.icon_set["GitIssue"], type, config.icon_set["Number"], state.issue["number"]))
     table.insert(lines_to_highlight, {#buffer_lines, hi})
     table.insert(buffer_lines, string.format("%s  Author: %s",  config.icon_set["Account"], state.issue["user"]["login"]))

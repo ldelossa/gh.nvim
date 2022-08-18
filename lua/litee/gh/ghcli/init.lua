@@ -190,8 +190,17 @@ function M.search_pulls(owner, name, qq, on_read)
 end
 
 -- like search_pulls but for issues.
-function M.search_issues(owner, name, qq, on_read)
-    local q = string.format("q=type:issue ", owner, name)
+function M.search_issues(qq, on_read)
+    local q = string.format("q=type:issue ")
+    if qq ~= nil then
+        q  = q .. qq
+    end
+    local args = {"api", "-X", "GET", "-F", "per_page=100", "search/issues", "-f", q}
+    async_request(args, on_read, true)
+end
+
+function M.search_repo_issues(owner, name, qq, on_read)
+    local q = string.format("q=repo:%s/%s type:issue ", owner, name)
     if qq ~= nil then
         q  = q .. qq
     end
