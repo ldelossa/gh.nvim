@@ -279,6 +279,22 @@ local function restore_draft(state)
     end
 end
 
+local function extract_issue_assignees(issue)
+    local assignee_str = ""
+    for _, a in ipairs(issue["assignees"]) do
+        assignee_str = assignee_str .. " " .. a["login"]
+    end
+    return assignee_str
+end
+
+local function extract_issue_labels(issue)
+    local str = ""
+    for _, l in ipairs(issue["labels"]) do
+        str = str .. " " .. l["name"]
+    end
+    return str
+end
+
 -- render_issue will return a buffer of the issue and set the issue state's
 -- buffer field
 function M.render_issue(number)
@@ -316,6 +332,10 @@ function M.render_issue(number)
     table.insert(buffer_lines, string.format("%s  Last Updated: %s", config.icon_set["Calendar"], state.issue["updated_at"]))
     table.insert(lines_to_highlight, {#buffer_lines, hi})
     table.insert(buffer_lines, string.format("%s  Title: %s",  config.icon_set["Pencil"], state.issue["title"]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("%s  Assigned:%s",  config.icon_set["Account"], extract_issue_assignees(state.issue)))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("%s  Labels:%s",  config.icon_set["Bookmark"], extract_issue_labels(state.issue)))
     table.insert(lines_to_highlight, {#buffer_lines, hi})
     table.insert(buffer_lines, "")
     table.insert(lines_to_highlight, {#buffer_lines, hi})
