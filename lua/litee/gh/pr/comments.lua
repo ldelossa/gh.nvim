@@ -48,6 +48,15 @@ function M.build_review_thread_trees(threads, depth)
 
     for _, t in ipairs(threads) do
         t = t["node"]
+        -- use the original line that the thread was placed on when building
+        -- the thread tree. 
+        --
+        -- if a commit is checked out where this thread is not reachable a 
+        -- warning is presented to the user, they can always get to all comments
+        -- by checking out head. see: gh/pr/diff_view.lua:408 for warning.
+        if t["line"] ~= t["originalLine"] then
+            t["line"] = t["originalLine"]
+        end
 
         -- get the root comment, it will tell us if this thread is part of a
         -- review.
