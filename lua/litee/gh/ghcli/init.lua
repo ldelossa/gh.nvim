@@ -575,14 +575,14 @@ end
 
 -- this is a graphql query so pass use the node_id for each argument that wants
 -- and id.
-function M.create_comment_review(pull_id, review_id, body, path, line, side)
-    local cmd = string.format([[gh api graphql -F pull="%s" -F review="%s" -F body=%s -F path="%s" -F line=%d  -F side=%s -f query='%s']],
+function M.create_comment_review(pull_id, review_id, body, path, pos, sha)
+    local cmd = string.format([[gh api graphql -F pull="%s" -F review="%s" -F body=%s -F path="%s" -F pos=%d -F sha="%s" -f query='%s']],
         pull_id,
         review_id,
         body,
         path,
-        line,
-        side,
+        pos,
+        sha,
         graphql.create_comment_review
     )
     local resp = gh_exec(cmd)

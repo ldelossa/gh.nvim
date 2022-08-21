@@ -379,7 +379,18 @@ function M.commits_handler(sha, refresh)
         table.insert(children, child_node)
         -- if threads exist for this file add them as children
         if s.pull_state.review_threads_by_filename[file["filename"]] ~= nil then
-            child_node.children = s.pull_state.review_threads_by_filename[file["filename"]]
+            if s.pull_state.head ~= sha then
+                for _, thread in ipairs(s.pull_state.review_threads_by_filename[file["filename"]]) do
+                    local root_comment = thread["children"][1]["comment"]
+                    if root_comment["originalCommit"]["oid"] == sha then
+                        table.insert(child_node.children, thread)
+                    end
+                end
+            else
+                -- if we checked out head, add all threads, they will be displayed with
+                -- current commit/line.
+                child_node.children = s.pull_state.review_threads_by_filename[file["filename"]]
+            end
         end
         if i == 1 then
             first_file = file
@@ -435,12 +446,13 @@ function M.commits_handler(sha, refresh)
        lib_util.safe_cursor_reset(state.win, {2,0})
     end
 
+    state.last_opened_commit = commit
+    s.pull_state.last_opened_commit = sha
+
     if not refresh then
          -- open first child in split
         diff_view.open_diffsplit(commit, first_file)
     end
-
-    state.last_opened_commit = commit
 end
 
 local function commit_exists(sha)

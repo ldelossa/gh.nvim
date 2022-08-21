@@ -15,9 +15,9 @@ mutation ($pull: ID!, $review: ID!, $commit: GitObjectID!, $body: String!, $repl
 ]]
 
 M.create_comment_review = [[
-mutation ($pull: ID!, $review: ID!, $body: String!, $path: String!, $line: Int!, $side: DiffSide!) {
-  addPullRequestReviewThread(
-    input: {pullRequestId: $pull, pullRequestReviewId: $review, body: $body, path: $path, line: $line, side: $side}
+mutation ($pull: ID!, $review: ID!, $body: String!, $path: String!, $pos: Int!, $sha: GitObjectID!) {
+  addPullRequestReviewComment(
+    input: {pullRequestId: $pull, pullRequestReviewId: $review, body: $body, path: $path, position: $pos, commitOID: $sha}
   ) {
     clientMutationId
   }
@@ -201,6 +201,7 @@ query ($name: String!, $owner: String!, $pull_number: Int!) {
                   createdAt
                   path
                   position
+                  originalPosition
                   publishedAt
                   replyTo {
                     id
@@ -209,6 +210,17 @@ query ($name: String!, $owner: String!, $pull_number: Int!) {
                     id
                   }
                   commit {
+                    oid
+                    parents(first: 1) {
+                      edges {
+                        node {
+                          id
+                          oid
+                        }
+                      }
+                    }
+                  }
+                  originalCommit {
                     oid
                     parents(first: 1) {
                       edges {
