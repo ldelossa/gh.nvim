@@ -29,7 +29,7 @@ end
 
 local state = nil
 
-function reset_state() 
+function reset_state()
     state = {
         -- the file that is currently being diffed
         file = nil,
@@ -117,6 +117,34 @@ local function setup_diff_ui()
     end
 end
 
+local function resolve_thread_line(thread)
+    local is_head = (function()
+        if s.pull_state.last_opened_commit ~= nil then
+            return s.pull_state.head == s.pull_state.last_opened_commit
+        else
+            return true
+        end
+    end)()
+
+    local line = nil
+    if thread["line"] ~= vim.NIL then
+        line = thread["line"]
+    end
+    if thread["originalLine"] ~= vim.NIL then
+        line = thread["originalLine"]
+    end
+
+    if is_head then
+        if thread["originalLine"] ~= vim.NIL then
+            line = thread["originalLine"]
+        end
+        if thread["line"] ~= vim.NIL then
+            line = thread["line"]
+        end
+    end
+    return line
+end
+
 -- places signs on the currently active diffsplit.
 --
 -- this should only be called when the caller knows a valid diffsplit has been
@@ -148,6 +176,7 @@ local function diffsplit_sign_place()
         return
     end
     vim.fn.sign_unplace("gh-comments")
+
     local comment_placed = {}
     for _, thread in ipairs(state.threads) do
         local buf = nil
@@ -157,13 +186,7 @@ local function diffsplit_sign_place()
             buf = state.lbuf
         end
 
-        local line = nil
-        if thread.thread["originalLine"] ~= vim.NIL then
-            line = thread.thread["originalLine"]
-        end
-        if thread.thread["line"] ~= vim.NIL then
-            line = thread.thread["line"]
-        end
+        local line = resolve_thread_line(thread.thread)
 
         if comment_placed[line] then
             vim.fn.sign_place(0, "gh-comments", "gh-comment-multi", buf, {
@@ -190,7 +213,7 @@ local function diffsplit_sign_place()
     end
 end
 
-local function organize_threads(threads)
+local function organize_threads(threads, commit)
     state.threads_by_line = {
         RIGHT = {},
         LEFT = {}
@@ -201,13 +224,7 @@ local function organize_threads(threads)
     end
 
     for _, thread in ipairs(threads) do
-        local line = nil
-        if thread.thread["originalLine"] ~= vim.NIL then
-            line = thread.thread["originalLine"]
-        end
-        if thread.thread["line"] ~= vim.NIL then
-            line = thread.thread["line"]
-        end
+        local line = resolve_thread_line(thread.thread)
         local side = thread.thread["diffSide"]
 
         if state.threads_by_line[side][line] == nil then
@@ -338,7 +355,7 @@ function M.open_diffsplit(commit, file, thread, compare_base)
 
     -- organize our threads by left,right and line number, fills in
     -- state.threads_by_line
-    organize_threads(state.threads)
+    organize_threads(state.threads, commit)
 
     -- map the file's hunk headers to buffer lines
     map_chunks_to_lines(file)
@@ -373,7 +390,7 @@ function M.open_diffsplit(commit, file, thread, compare_base)
     vim.cmd("vert diffsplit " .. diff_file)
     vim.cmd("q")
     vim.cmd("vert diffsplit " .. diff_file)
-    
+
     -- we are now in left diff window, bookkeep this and our diff buffers
     state.lwin = vim.api.nvim_get_current_win()
     state.lbuf = vim.api.nvim_win_get_buf(state.lwin)
@@ -395,13 +412,7 @@ function M.open_diffsplit(commit, file, thread, compare_base)
         else
             win = state.lwin
         end
-        local line = nil
-        if thread["originalLine"] ~= vim.NIL then
-            line = thread["originalLine"]
-        end
-        if thread["line"] ~= vim.NIL then
-            line = thread["line"]
-        end
+        local line = resolve_thread_line(thread)
         if vim.api.nvim_buf_line_count(
             vim.api.nvim_win_get_buf(win)
         ) < line then

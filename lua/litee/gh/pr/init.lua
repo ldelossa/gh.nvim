@@ -420,6 +420,8 @@ function M.close_pr_commits()
         lib_tree.remove_tree(state["pr_files"].tree)
     end
     lib_state.put_component_state(s.pull_state.tab, "pr_files", nil)
+    s.pull_state.last_opened_commit = nil
+    write_trees(ui_req_ctx())
     M.clean()
 end
 
@@ -719,7 +721,15 @@ function M.start_review()
         lib_notify.notify_popup_with_timeout("Must open a pull request before starting a review.", 7500, "error")
         return
     end
-    local review = ghcli.create_review(s.pull_state.number, s.pull_state.head)
+
+    local commit = nil
+    if s.pull_state.last_opened_commit ~= nil then
+        commit = s.pull_state.last_opened_commit
+    else
+        commit = s.pull_state.head
+    end
+
+    local review = ghcli.create_review(s.pull_state.number, commit)
     s.pull_state.review = review
     vim.cmd("GHRefreshPR")
 end
@@ -849,13 +859,13 @@ local function open_pr_node(ctx, node)
         handlers.commits_handler(node.commit["sha"])
     end
     if node.thread ~= nil then
-         -- checkout head if we are opening a thread from "Conversations:" tree.
-         local out = gitcli.checkout(nil, s.pull_state.head)
-         if out == nil then
-            lib_notify.notify_popup_with_timeout("Failed to checkout head.", 7500, "error")
-         end
+        local root_comment = node["children"][1]["comment"]
+        local sha = root_comment["commit"]["oid"]
+        -- set refresh to true so diff_view is not opened, we'll open it 
+        -- more specifically below
+        handlers.commits_handler(sha, true)
 
-        local commit = s.pull_state.commits_by_sha[s.pull_state.head]
+        local commit = s.pull_state.commits_by_sha[sha]
         local file = s.pull_state.files_by_name[node.thread["path"]]
         if file == nil then
             return
@@ -863,14 +873,14 @@ local function open_pr_node(ctx, node)
         diff_view.open_diffsplit(commit, file, node.thread, true)
     end
     if node.comment ~= nil then
-         -- checkout head if we are opening a thread from "Conversations:" tree.
-        local out = gitcli.checkout(nil, s.pull_state.head)
-        if out == nil then
-            lib_notify.notify_popup_with_timeout("Failed to checkout head.", 7500, "error")
-        end
-
         local thread = s.pull_state.review_threads_by_id[node.comment["thread_id"]]
-        local commit = s.pull_state.commits_by_sha[s.pull_state.head]
+        local root_comment = thread["children"][1]["comment"]
+        local sha = root_comment["commit"]["oid"]
+        -- set refresh to true so diff_view is not opened, we'll open it 
+        -- more specifically below
+        handlers.commits_handler(sha, true)
+
+        local commit = s.pull_state.commits_by_sha[sha]
         local file = s.pull_state.files_by_name[thread.thread["path"]]
         if file == nil then
             return
@@ -884,6 +894,7 @@ local function open_pr_node(ctx, node)
     if node.file ~= nil then
         -- if we are opening a file from the aggregated file view in the pr tree,
         -- checkout head.
+        M.close_pr_commits()
         local out = gitcli.checkout(nil, s.pull_state["head"])
         if out == nil then
            lib_notify.notify_popup_with_timeout("Failed to checkout HEAD.", 7500, "error")

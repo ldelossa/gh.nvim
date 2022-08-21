@@ -35,29 +35,56 @@ local function marshal_requested_review_node(node)
     return name, detail, icon
 end
 
-local function marshal_thread_node(node)
-    local name, detail, icon = "", "", ""
+local function marshal_thread_node(use_original) 
+    if use_original then
+        return function(node) 
+            local name, detail, icon = "", "", ""
+            local line = ""
+            if node.thread["line"] ~= vim.NIL then
+                line = node.thread["line"]
+            end
+            if node.thread["originalLine"] ~= vim.NIL then
+                line = node.thread["originalLine"]
+            end
+            local root_comment = node["children"][1]["comment"]
+            detail = string.sub(root_comment["originalCommit"]["oid"], 1, 8)
+            detail = "@ " .. detail
 
-    local line = nil
-    if node.thread["originalLine"] ~= vim.NIL then
-        line = node.thread["originalLine"]
-    end
-    if node.thread["line"] ~= vim.NIL then
-        line = node.thread["line"]
-    end
+            name = string.format("%s:%s", node.thread["path"], line)
 
-    name = string.format("%s:%d", node.thread["path"], line)
+            if node.thread["isResolved"] then
+                icon = config.icon_set["CheckAll"]
+            else
+                icon = config.icon_set["MultiComment"]
+            end
 
-    if node.thread["isResolved"] then
-        icon = config.icon_set["CheckAll"]
+            return name, detail, icon
+        end
     else
-        icon = config.icon_set["MultiComment"]
+        return function(node) 
+            local name, detail, icon = "", "", ""
+            local line = ""
+            if node.thread["originalLine"] ~= vim.NIL then
+                line = node.thread["originalLine"]
+            end
+            if node.thread["line"] ~= vim.NIL then
+                line = node.thread["line"]
+            end
+            local root_comment = node["children"][1]["comment"]
+            detail = string.sub(root_comment["originalCommit"]["oid"], 1, 8)
+            detail = "@ " .. detail
+
+            name = string.format("%s:%s", node.thread["path"], line)
+
+            if node.thread["isResolved"] then
+                icon = config.icon_set["CheckAll"]
+            else
+                icon = config.icon_set["MultiComment"]
+            end
+
+            return name, detail, icon
+        end
     end
-
-    local count = #node["children"]
-    detail = string.format("%d", count)
-
-    return name, detail, icon
 end
 
 local function marshal_issue_comment_node(node)
@@ -120,7 +147,18 @@ end
 local function marshal_commit_node(node)
     local name, detail, icon = "", "", ""
 
-    name = vim.fn.strcharpart(node.commit["sha"], 0, 8)
+    local checked_out_commit = nil
+    if s.pull_state.last_opened_commit ~= nil then
+        checked_out_commit = s.pull_state.last_opened_commit
+    else
+        checked_out_commit = s.pull_state.head
+    end
+
+    if node.commit["sha"] == checked_out_commit then
+        name = "* " .. vim.fn.strcharpart(node.commit["sha"], 0, 8)
+    else
+        name = vim.fn.strcharpart(node.commit["sha"], 0, 8)
+    end
 
     local commit_title = node.commit["commit"]["message"]
     local new_line_idx = vim.fn.stridx(node.commit["commit"]["message"], '\n')
@@ -178,7 +216,7 @@ function M.marshal_pr_review_node(node)
     end
 
     if node.thread ~= nil then
-        return marshal_thread_node(node)
+        return marshal_thread_node(false)(node)
     end
 
     if node.comment ~= nil then
@@ -196,7 +234,7 @@ function M.marshal_pr_node(node)
     end
 
     if node.thread ~= nil then
-        return check_notifications(node, marshal_thread_node(node))
+        return check_notifications(node, marshal_thread_node(false)(node))
     end
 
     if node.comment ~= nil then
@@ -241,7 +279,11 @@ function M.marshal_pr_file_node(node)
     end
 
     if node.thread ~= nil then
-        return check_notifications(node, marshal_thread_node(node))
+        if s.pull_state.last_opened_commit == s.pull_state.head then
+            return check_notifications(node, marshal_thread_node(false)(node))
+        else
+            return check_notifications(node, marshal_thread_node(true)(node))
+        end
     end
 
     if node.comment ~= nil then

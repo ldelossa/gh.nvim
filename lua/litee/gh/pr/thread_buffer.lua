@@ -49,9 +49,9 @@ local function extract_thread_lines(thread)
     local start_line = nil
     local end_line = nil
     local multiline = false
-    if thread.thread["line"] ~= vim.NIL then
-        start_line = thread.thread["startLine"]
-        end_line = thread.thread["line"]
+    if thread.thread["originalLine"] ~= vim.NIL then
+        start_line = thread.thread["originalStartLine"]
+        end_line = thread.thread["originalLine"]
         if start_line == vim.NIL then
             start_line = end_line
         else
@@ -59,9 +59,9 @@ local function extract_thread_lines(thread)
             end_line = end_line
         end
         return {start_line-1, end_line, multiline}
-    elseif thread.thread["originalLine"] ~= vim.NIL then
-        start_line = thread.thread["originalStartLine"]
-        end_line = thread.thread["originalLine"]
+    elseif thread.thread["line"] ~= vim.NIL then
+        start_line = thread.thread["startLine"]
+        end_line = thread.thread["line"]
         if start_line == vim.NIL then
             start_line = end_line
         else
@@ -413,13 +413,6 @@ function M.render_thread(thread_id, n_of, displayed_thread, side)
 
     -- pull out root comment
     local root_comment = thread["children"][1]
-    local line = nil
-    if thread.thread["originalLine"] ~= vim.NIL then
-        line = thread.thread["originalLine"]
-    end
-    if thread.thread["line"] ~= vim.NIL then
-        line = thread.thread["line"]
-    end
 
     -- render thread header
     local hi = config.config.highlights["thread_separator"]
@@ -427,8 +420,18 @@ function M.render_thread(thread_id, n_of, displayed_thread, side)
     table.insert(lines_to_highlight, {#buffer_lines, hi})
     table.insert(buffer_lines, string.format("%s  Author: %s",  config.icon_set["Account"], root_comment.comment["author"]["login"]))
     table.insert(lines_to_highlight, {#buffer_lines, hi})
-    table.insert(buffer_lines, string.format("%s  Path: %s:%d",  config.icon_set["File"], thread.thread["path"], line))
+    table.insert(buffer_lines, string.format("%s  Path: %s",  config.icon_set["File"], thread.thread["path"]))
     table.insert(lines_to_highlight, {#buffer_lines, hi})
+    table.insert(buffer_lines, string.format("%s  Line: %s",  config.icon_set["File"], thread.thread["line"]))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+
+    if thread.thread["originalLine"] ~= vim.NIL and thread.thread["originalLine"] ~= thread.thread["line"] then
+        table.insert(buffer_lines, string.format("%s  Original Line: %s",  config.icon_set["File"], thread.thread["originalLine"]))
+        table.insert(lines_to_highlight, {#buffer_lines, hi})
+    end
+    table.insert(buffer_lines, string.format("%s  Original Commit: %s",  config.icon_set["GitCommit"], string.sub(root_comment.comment["originalCommit"]["oid"], 1, 8)))
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+
     table.insert(buffer_lines, string.format("%s  Resolved: %s",  config.icon_set["CheckAll"], thread.thread["isResolved"]))
     table.insert(lines_to_highlight, {#buffer_lines, hi})
     table.insert(buffer_lines, string.format("%s  Outdated: %s",  config.icon_set["History"], thread.thread["isOutdated"]))
@@ -705,13 +708,19 @@ local function create(body, details)
     else
     -- create comment within the review
        if details.line == details.end_line then
+           local commit = nil
+           if s.pull_state.last_opened_commit ~= nil then
+               commit = s.pull_state.last_opened_commit
+           else
+               commit = s.pull_state.head
+           end
            local out = ghcli.create_comment_review(
                s.pull_state.pr_raw["node_id"],
                s.pull_state.review["node_id"],
                body,
                details.path,
                details.line,
-               details.side
+               commit
            )
            if out == nil then
                lib_notify.notify_popup_with_timeout("Failed to create new comment.", 7500, "error")
