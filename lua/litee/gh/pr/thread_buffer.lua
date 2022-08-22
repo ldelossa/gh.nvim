@@ -325,7 +325,7 @@ local function write_preview(thread, buffer_lines, lines_to_highlight, hi)
     table.insert(lines_to_highlight, {#buffer_lines, hi})
     local tmp = {}
     for i = #lines, 1, -1 do
-        if i == (#lines-4) then
+        if i == (#lines-4) or i == 1 then
             break
         end
         table.insert(tmp, lines[i])
