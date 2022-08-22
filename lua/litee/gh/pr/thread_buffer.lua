@@ -318,9 +318,14 @@ local function restore_thread(thread_id, displayed_thread)
     end
 end
 
+-- uses the commit's diffHunk to write a maximum of 4 lines of preview text
+-- in the thread buffer. 
+--
+-- the hunk's header is not included in the output nor counted in the number
+-- of maximum lines.
 local function write_preview(thread, buffer_lines, lines_to_highlight, hi)
-    root_comment = thread.children[1].comment
-    lines = vim.split(root_comment["diffHunk"], "\n")
+    local root_comment = thread.children[1].comment
+    local lines = vim.split(root_comment["diffHunk"], "\n")
     table.insert(buffer_lines, "")
     table.insert(lines_to_highlight, {#buffer_lines, hi})
     local tmp = {}
@@ -332,8 +337,6 @@ local function write_preview(thread, buffer_lines, lines_to_highlight, hi)
     end
     if #tmp > 0 then
         for i = #tmp, 1, -1 do
-            print(i)
-            print(tmp[i])
             local l = tmp[i]
             table.insert(buffer_lines, "▏ " .. l)
             if string.sub(l,1,1) == "+" then
