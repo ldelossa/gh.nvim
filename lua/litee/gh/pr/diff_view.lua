@@ -117,29 +117,27 @@ local function setup_diff_ui()
     end
 end
 
-local function resolve_thread_line(thread)
-    local is_head = (function()
-        if s.pull_state.last_opened_commit ~= nil then
-            return s.pull_state.head == s.pull_state.last_opened_commit
-        else
-            return true
+local function resolve_thread_line(thread, original_commit)
+    local use_original = (function()
+        if s.pull_state.last_opened_commit == nil then
+            return false
         end
+        return s.pull_state.last_opened_commit == original_commit
     end)()
 
     local line = nil
-    if thread["line"] ~= vim.NIL then
-        line = thread["line"]
-    end
-    if thread["originalLine"] ~= vim.NIL then
-        line = thread["originalLine"]
-    end
-
-    if is_head then
         if thread["originalLine"] ~= vim.NIL then
             line = thread["originalLine"]
         end
         if thread["line"] ~= vim.NIL then
             line = thread["line"]
+        end
+    if use_original then
+        if thread["line"] ~= vim.NIL then
+            line = thread["line"]
+        end
+        if thread["originalLine"] ~= vim.NIL then
+            line = thread["originalLine"]
         end
     end
     return line
@@ -186,7 +184,7 @@ local function diffsplit_sign_place()
             buf = state.lbuf
         end
 
-        local line = resolve_thread_line(thread.thread)
+        local line = resolve_thread_line(thread.thread, thread.children[1].comment["originalCommit"]["oid"])
 
         if comment_placed[line] then
             vim.fn.sign_place(0, "gh-comments", "gh-comment-multi", buf, {
@@ -224,7 +222,7 @@ local function organize_threads(threads, commit)
     end
 
     for _, thread in ipairs(threads) do
-        local line = resolve_thread_line(thread.thread)
+        local line = resolve_thread_line(thread.thread, thread.children[1].comment["originalCommit"]["oid"])
         local side = thread.thread["diffSide"]
 
         if state.threads_by_line[side][line] == nil then
@@ -412,7 +410,9 @@ function M.open_diffsplit(commit, file, thread, compare_base)
         else
             win = state.lwin
         end
-        local line = resolve_thread_line(thread)
+        print(vim.inspect(thread.comments["edges"][1]["node"].originalCommit["oid"]))
+        local line = resolve_thread_line(thread, thread.comments["edges"][1]["node"].originalCommit["oid"])
+        print(vim.inspect(thread))
         if vim.api.nvim_buf_line_count(
             vim.api.nvim_win_get_buf(win)
         ) < line then

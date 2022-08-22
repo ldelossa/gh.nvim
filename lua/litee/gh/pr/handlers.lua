@@ -379,18 +379,7 @@ function M.commits_handler(sha, refresh)
         table.insert(children, child_node)
         -- if threads exist for this file add them as children
         if s.pull_state.review_threads_by_filename[file["filename"]] ~= nil then
-            if s.pull_state.head ~= sha then
-                for _, thread in ipairs(s.pull_state.review_threads_by_filename[file["filename"]]) do
-                    local root_comment = thread["children"][1]["comment"]
-                    if root_comment["originalCommit"]["oid"] == sha then
-                        table.insert(child_node.children, thread)
-                    end
-                end
-            else
-                -- if we checked out head, add all threads, they will be displayed with
-                -- current commit/line.
-                child_node.children = s.pull_state.review_threads_by_filename[file["filename"]]
-            end
+            child_node.children = s.pull_state.review_threads_by_filename[file["filename"]]
         end
         if i == 1 then
             first_file = file
