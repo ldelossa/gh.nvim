@@ -251,6 +251,7 @@ query ($name: String!, $owner: String!, $pull_number: Int!) {
                   viewerCannotUpdateReasons
                   viewerDidAuthor
                   url
+                  diffHunk
                 }
               }
             }

@@ -318,43 +318,21 @@ local function restore_thread(thread_id, displayed_thread)
     end
 end
 
--- write_preview grabs the buffer lines the thread refers to and writes a preview
--- of these threads into buffer_lines.
-local function write_preview(thread, buffer_lines, side, lines_to_highlight, hi)
-    local thread_source_lines = extract_thread_lines(thread)
-    -- grab source code buffer for preview
-    local buf = nil
-    for _, b in ipairs(vim.api.nvim_list_bufs()) do
-        local path = ""
-        if side == "LEFT" then
-            path = string.format("%s/%s", "/tmp", lib_path.basename(thread.thread["path"]))
-        else
-            path = string.format("%s/%s", vim.fn.getcwd(), thread.thread["path"])
-        end
-        if vim.api.nvim_buf_get_name(b) == path then
-            buf = b
-        end
-    end
-    if
-        buf ~= nil
-        and thread_source_lines ~= nil
-    then
-        local start_line = thread_source_lines[1]
-        local end_line = thread_source_lines[2]
-        local multiline = thread_source_lines[3]
-        -- if not a multiline comment, and if we have space, give some context
-        if
-            (start_line - 3) >= 1 and
-            not multiline
-        then
-            start_line = start_line - 3
-        end
-        table.insert(buffer_lines, "")
-        table.insert(lines_to_highlight, {#buffer_lines, hi})
-        local lines = vim.api.nvim_buf_get_lines(buf, start_line, end_line, true)
-        for i, preview_line in ipairs(lines) do
-            table.insert(buffer_lines, string.format("%s %s %s", (start_line + i), "▏", preview_line))
-            table.insert(lines_to_highlight, {#buffer_lines, hi})
+local function write_preview(thread, buffer_lines, lines_to_highlight, hi)
+    root_comment = thread.children[1].comment
+    lines = vim.split(root_comment["diffHunk"], "\n")
+    table.insert(buffer_lines, "")
+    table.insert(lines_to_highlight, {#buffer_lines, hi})
+    for i, l in ipairs(lines) do
+        if i ~= 1 then
+            table.insert(buffer_lines, "▏ " .. l)
+            if string.sub(l,1,1) == "+" then
+                table.insert(lines_to_highlight, {#buffer_lines, "DiffAdd"})
+            elseif string.sub(l,1,1) == "-" then
+                table.insert(lines_to_highlight, {#buffer_lines, "DiffDelete"})
+            else
+                table.insert(lines_to_highlight, {#buffer_lines, hi})
+            end
         end
     end
 end
@@ -441,7 +419,7 @@ function M.render_thread(thread_id, n_of, displayed_thread, side)
     table.insert(buffer_lines, string.format("%s  Last Updated: %s",  config.icon_set["Calendar"], root_comment.comment["updatedAt"]))
     table.insert(lines_to_highlight, {#buffer_lines, hi})
     -- preview in header
-    write_preview(thread, buffer_lines, side, lines_to_highlight, hi)
+    write_preview(thread, buffer_lines, lines_to_highlight, hi)
     table.insert(buffer_lines, "")
     table.insert(lines_to_highlight, {#buffer_lines, hi})
     table.insert(buffer_lines, string.format("(submit: %s)(comment actions: %s)(un/resolve: %s)", config.config.keymaps.submit_comment, config.config.keymaps.actions, config.config.keymaps.resolve_thread))
