@@ -323,8 +323,18 @@ local function write_preview(thread, buffer_lines, lines_to_highlight, hi)
     lines = vim.split(root_comment["diffHunk"], "\n")
     table.insert(buffer_lines, "")
     table.insert(lines_to_highlight, {#buffer_lines, hi})
-    for i, l in ipairs(lines) do
-        if i ~= 1 then
+    local tmp = {}
+    for i = #lines, 1, -1 do
+        if i == (#lines-4) then
+            break
+        end
+        table.insert(tmp, lines[i])
+    end
+    if #tmp > 0 then
+        for i = #tmp, 1, -1 do
+            print(i)
+            print(tmp[i])
+            local l = tmp[i]
             table.insert(buffer_lines, "▏ " .. l)
             if string.sub(l,1,1) == "+" then
                 table.insert(lines_to_highlight, {#buffer_lines, "DiffAdd"})
