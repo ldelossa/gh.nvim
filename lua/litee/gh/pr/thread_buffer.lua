@@ -318,9 +318,36 @@ local function restore_thread(thread_id, displayed_thread)
     end
 end
 
+local function resolve_thread_line(thread, original_commit)
+    local use_original = (function()
+        if s.pull_state.last_opened_commit == nil then
+            return false
+        end
+        return s.pull_state.last_opened_commit == original_commit
+    end)()
+
+    local line = nil
+        if thread["originalLine"] ~= vim.NIL then
+            line = thread["originalLine"]
+        end
+        if thread["line"] ~= vim.NIL then
+            line = thread["line"]
+        end
+    if use_original then
+        if thread["line"] ~= vim.NIL then
+            line = thread["line"]
+        end
+        if thread["originalLine"] ~= vim.NIL then
+            line = thread["originalLine"]
+        end
+    end
+    return line
+end
+
 local function write_preview(thread, buffer_lines, lines_to_highlight, hi)
-    root_comment = thread.children[1].comment
-    lines = vim.split(root_comment["diffHunk"], "\n")
+    local root_comment = thread.children[1].comment
+    local comment_line = resolve_thread_line(thread.thread, root_comment["originalCommit"]["oid"]) + 1
+    local lines = vim.split(root_comment["diffHunk"], "\n")
     table.insert(buffer_lines, "")
     table.insert(lines_to_highlight, {#buffer_lines, hi})
     local tmp = {}
@@ -331,9 +358,11 @@ local function write_preview(thread, buffer_lines, lines_to_highlight, hi)
         table.insert(tmp, lines[i])
     end
     if #tmp > 0 then
+        comment_line = comment_line - #tmp
         for i = #tmp, 1, -1 do
             local l = tmp[i]
-            table.insert(buffer_lines, "▏ " .. l)
+            local buf_line = string.format("%d ▏%s", comment_line, l)
+            table.insert(buffer_lines, buf_line)
             if string.sub(l,1,1) == "+" then
                 table.insert(lines_to_highlight, {#buffer_lines, "DiffAdd"})
             elseif string.sub(l,1,1) == "-" then
@@ -341,6 +370,7 @@ local function write_preview(thread, buffer_lines, lines_to_highlight, hi)
             else
                 table.insert(lines_to_highlight, {#buffer_lines, hi})
             end
+            comment_line = comment_line + 1
         end
     end
 end
