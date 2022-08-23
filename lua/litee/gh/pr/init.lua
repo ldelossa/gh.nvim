@@ -22,7 +22,11 @@ local M = {}
 M.autocmds = {}
 
 local function open_nodes_url(node)
-    vim.fn.system({'xdg-open', node.url})
+    if vim.fn.has('mac') then
+        vim.fn.system({'open', node.url})
+    else
+        vim.fn.system({'xdg-open', node.url})
+    end
 end
 
 local function ui_req_ctx()
