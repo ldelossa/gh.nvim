@@ -358,19 +358,32 @@ local function write_preview(thread, buffer_lines, lines_to_highlight, hi, line_
         table.insert(tmp, lines[i])
     end
     if #tmp > 0 then
-        comment_line = comment_line - #tmp
+        local prev_symbol = ""
+        comment_line = (comment_line - #tmp)-1
         for i = #tmp, 1, -1 do
             local l = tmp[i]
-            local buf_line = string.format("%d ▏%s", comment_line, l)
-            table.insert(buffer_lines, buf_line)
             if string.sub(l,1,1) == "+" then
+                if prev_symbol ~= "-" then
+                    comment_line = comment_line + 1
+                end
+                l = string.sub(l, 2, -1)
+                local buf_line = string.format("%d + ▏ %s", comment_line, l)
+                table.insert(buffer_lines, buf_line)
                 table.insert(lines_to_highlight, {#buffer_lines, "DiffAdd"})
+                prev_symbol = "+"
             elseif string.sub(l,1,1) == "-" then
+                comment_line = comment_line + 1
+                l = string.sub(l, 2, -1)
+                local buf_line = string.format("%d - ▏ %s", comment_line, l)
+                table.insert(buffer_lines, buf_line)
                 table.insert(lines_to_highlight, {#buffer_lines, "DiffDelete"})
+                prev_symbol = "-"
             else
+                comment_line = comment_line + 1
+                local buf_line = string.format("%d   ▏ %s", comment_line, l)
+                table.insert(buffer_lines, buf_line)
                 table.insert(lines_to_highlight, {#buffer_lines, hi})
             end
-            comment_line = comment_line + 1
         end
     end
 end
