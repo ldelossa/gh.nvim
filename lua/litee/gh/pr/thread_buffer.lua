@@ -344,9 +344,9 @@ local function resolve_thread_line(thread, original_commit)
     return line
 end
 
-local function write_preview(thread, buffer_lines, lines_to_highlight, hi)
+local function write_preview(thread, buffer_lines, lines_to_highlight, hi, line_nr)
     local root_comment = thread.children[1].comment
-    local comment_line = resolve_thread_line(thread.thread, root_comment["originalCommit"]["oid"]) + 1
+    local comment_line = line_nr + 1
     local lines = vim.split(root_comment["diffHunk"], "\n")
     table.insert(buffer_lines, "")
     table.insert(lines_to_highlight, {#buffer_lines, hi})
@@ -388,7 +388,7 @@ end
 -- previously writen text.
 --
 -- this method is intended to work as a 'refresh' method as well.
-function M.render_thread(thread_id, n_of, displayed_thread, side)
+function M.render_thread(thread_id, line_nr, n_of, displayed_thread, side)
     setup_buffer(thread_id)
 
     local restore = restore_thread(thread_id, displayed_thread)
@@ -457,7 +457,7 @@ function M.render_thread(thread_id, n_of, displayed_thread, side)
     table.insert(buffer_lines, string.format("%s  Last Updated: %s",  config.icon_set["Calendar"], root_comment.comment["updatedAt"]))
     table.insert(lines_to_highlight, {#buffer_lines, hi})
     -- preview in header
-    write_preview(thread, buffer_lines, lines_to_highlight, hi)
+    write_preview(thread, buffer_lines, lines_to_highlight, hi, line_nr)
     table.insert(buffer_lines, "")
     table.insert(lines_to_highlight, {#buffer_lines, hi})
     table.insert(buffer_lines, string.format("(submit: %s)(comment actions: %s)(un/resolve: %s)", config.config.keymaps.submit_comment, config.config.keymaps.actions, config.config.keymaps.resolve_thread))

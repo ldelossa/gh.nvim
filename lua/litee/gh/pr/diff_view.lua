@@ -29,7 +29,7 @@ end
 
 local state = nil
 
-function reset_state()
+local function reset_state()
     state = {
         -- the file that is currently being diffed
         file = nil,
@@ -57,6 +57,7 @@ function reset_state()
         --   }
         -- }
         threads_by_line = nil,
+        thread_id_to_line = {},
         -- displayed thread table {
         --   side,
         --   win,
@@ -117,36 +118,6 @@ local function setup_diff_ui()
     end
 end
 
-local function resolve_thread_line(thread, original_commit)
-    local use_original = (function()
-        if s.pull_state.last_opened_commit == nil then
-            return false
-        end
-        return s.pull_state.last_opened_commit == original_commit
-    end)()
-
-    local line = nil
-        if thread["originalLine"] ~= vim.NIL then
-            line = thread["originalLine"]
-        end
-        if thread["line"] ~= vim.NIL then
-            line = thread["line"]
-        end
-    if use_original then
-        if thread["line"] ~= vim.NIL then
-            line = thread["line"]
-        end
-        if thread["originalLine"] ~= vim.NIL then
-            line = thread["originalLine"]
-        end
-    end
-    return line
-end
-
--- places signs on the currently active diffsplit.
---
--- this should only be called when the caller knows a valid diffsplit has been
--- setup.
 local function diffsplit_sign_place()
     init()
     vim.fn.sign_unplace("gh-can-comment")
@@ -174,44 +145,53 @@ local function diffsplit_sign_place()
         return
     end
     vim.fn.sign_unplace("gh-comments")
-
-    local comment_placed = {}
-    for _, thread in ipairs(state.threads) do
+    local function place(side)
         local buf = nil
-        if thread.thread["diffSide"] == "RIGHT" then
-            buf = state.rbuf
-        else
+        if side == "LEFT" then
             buf = state.lbuf
-        end
-
-        local line = resolve_thread_line(thread.thread, thread.children[1].comment["originalCommit"]["oid"])
-
-        if comment_placed[line] then
-            vim.fn.sign_place(0, "gh-comments", "gh-comment-multi", buf, {
-                lnum = line,
-                priority = 99
-            })
-        elseif thread.thread["isOutdated"] then
-            vim.fn.sign_place(0, "gh-comments", "gh-comment-outdated", buf, {
-                lnum = line,
-                priority = 99
-            })
-        elseif thread.thread["isResolved"] then
-            vim.fn.sign_place(0, "gh-comments", "gh-comment-resolved", buf, {
-                lnum = line,
-                priority = 99
-            })
         else
-            vim.fn.sign_place(0, "gh-comments", "gh-comment", buf, {
-                lnum = line,
-                priority = 99
-            })
+            buf = state.rbuf
         end
-        comment_placed[line] = true
+        for line, threads in pairs(state.threads_by_line[side]) do
+            if #threads > 1 then
+                vim.fn.sign_place(0, "gh-comments", "gh-comment-multi", buf, {
+                    lnum = line,
+                    priority = 99
+                })
+            elseif threads[1].thread["isOutdated"] then
+                vim.fn.sign_place(0, "gh-comments", "gh-comment-outdated", buf, {
+                    lnum = line,
+                    priority = 99
+                })
+            elseif threads[1].thread["isResolved"] then
+                vim.fn.sign_place(0, "gh-comments", "gh-comment-resolved", buf, {
+                    lnum = line,
+                    priority = 99
+                })
+            else
+                vim.fn.sign_place(0, "gh-comments", "gh-comment", buf, {
+                    lnum = line,
+                    priority = 99
+                })
+            end
+        end
     end
+    place("RIGHT")
+    place("LEFT")
 end
 
-local function organize_threads(threads, commit)
+local function parse_diff_hunk_line(line)
+    if
+        string.sub(line,1,1) == "+" or
+        string.sub(line,1,1) == "-" or
+        string.sub(line,1,1) == " "
+    then
+        return string.sub(line, 2, -1)
+    end
+    return line
+end
+
+local function organize_threads(threads)
     state.threads_by_line = {
         RIGHT = {},
         LEFT = {}
@@ -222,14 +202,77 @@ local function organize_threads(threads, commit)
     end
 
     for _, thread in ipairs(threads) do
-        local line = resolve_thread_line(thread.thread, thread.children[1].comment["originalCommit"]["oid"])
         local side = thread.thread["diffSide"]
+        local root_comment = thread.children[1].comment
+        local hunk_lines = vim.split(root_comment["diffHunk"],"\n")
+        local last_line  = hunk_lines[#hunk_lines]
+        last_line = parse_diff_hunk_line(last_line)
 
-        if state.threads_by_line[side][line] == nil then
-            state.threads_by_line[side][line] = {thread}
+        local buf = nil
+        if side == "LEFT" then
+            buf = state.lbuf
         else
-            table.insert(state.threads_by_line[side][line], thread)
+            buf = state.rbuf
         end
+
+        if thread.thread["line"] ~= vim.NIL then
+            local line = vim.api.nvim_buf_get_lines(buf, thread.thread["line"]-1, thread.thread["line"], false)
+            if line[1] == last_line then
+                if state.threads_by_line[side][thread.thread["line"]] == nil then
+                    state.threads_by_line[side][thread.thread["line"]] = {thread}
+                else
+                    table.insert(state.threads_by_line[side][thread.thread["line"]], thread)
+                end
+                state.thread_id_to_line[thread.thread["id"]] = tonumber(thread.thread["line"])
+                goto continue
+            end
+        end
+
+        if thread.thread["originalLine"] ~= vim.NIL then
+            local line = vim.api.nvim_buf_get_lines(buf, thread.thread["originalLine"]-1, thread.thread["originalLine"], false)
+            if line[1] == last_line then
+                if state.threads_by_line[side][thread.thread["originalLine"]] == nil then
+                    state.threads_by_line[side][thread.thread["originalLine"]] = {thread}
+                else
+                    table.insert(state.threads_by_line[side][thread.thread["originalLine"]], thread)
+                end
+                state.thread_id_to_line[thread.thread["id"]] = tonumber(thread.thread["originalLine"])
+                goto continue
+            end
+        end
+
+        -- we can't find a matching line for the comment, but we still want to 
+        -- display it somewhere, prefer the current line if that line exists in
+        -- the taget buffer, if not prefer the originalLine if that line exists
+        -- in the buffer.
+
+        if thread.thread["line"] ~= vim.NIL then
+            local line = vim.api.nvim_buf_get_lines(buf, thread.thread["line"]-1, thread.thread["line"], false)
+            if #line ~= 0 then
+                if state.threads_by_line[side][thread.thread["line"]] == nil then
+                    state.threads_by_line[side][thread.thread["line"]] = {thread}
+                else
+                    table.insert(state.threads_by_line[side][thread.thread["line"]], thread)
+                end
+                state.thread_id_to_line[thread.thread["id"]] = tonumber(thread.thread["line"])
+                goto continue
+            end
+        end
+
+        if thread.thread["originalLine"] ~= vim.NIL then
+            local line = vim.api.nvim_buf_get_lines(buf, thread.thread["originalLine"]-1, thread.thread["originalLine"], false)
+            if #line ~= 0 then
+                if state.threads_by_line[side][thread.thread["originalLine"]] == nil then
+                    state.threads_by_line[side][thread.thread["originalLine"]] = {thread}
+                else
+                    table.insert(state.threads_by_line[side][thread.thread["originalLine"]], thread)
+                end
+                state.thread_id_to_line[thread.thread["id"]] = tonumber(thread.thread["originalLine"])
+                goto continue
+            end
+        end
+
+        ::continue::
     end
 end
 
@@ -270,7 +313,7 @@ function M.on_refresh()
     if
         state.displayed_thread ~= nil
     then
-        local t_buf = thread_buffer.render_thread(state.displayed_thread.thread_id, state.displayed_thread.n_of, state.displayed_thread, state.displayed_thread.side)
+        local t_buf = thread_buffer.render_thread(state.displayed_thread.thread_id, state.thread_id_to_line[state.displayed_thread.thread_id], state.displayed_thread.n_of, state.displayed_thread, state.displayed_thread.side)
 
         if state.displayed_thread.popup then
             return
@@ -351,13 +394,6 @@ function M.open_diffsplit(commit, file, thread, compare_base)
         LEFT = {}
     }
 
-    -- organize our threads by left,right and line number, fills in
-    -- state.threads_by_line
-    organize_threads(state.threads, commit)
-
-    -- map the file's hunk headers to buffer lines
-    map_chunks_to_lines(file)
-
     -- this will be the left side of our diff, we'll create this as a tmp file
     -- with the gitcli command
     local diff_file = string.format("/tmp/%s", lib_util_path.basename(file["filename"]))
@@ -394,6 +430,13 @@ function M.open_diffsplit(commit, file, thread, compare_base)
     state.lbuf = vim.api.nvim_win_get_buf(state.lwin)
     state.rbuf = vim.api.nvim_win_get_buf(state.rwin)
 
+    -- organize our threads by left,right and line number, fills in
+    -- state.threads_by_line
+    organize_threads(state.threads)
+
+    -- map the file's hunk headers to buffer lines
+    map_chunks_to_lines(file)
+
     -- switch back to right side
     vim.api.nvim_set_current_win(state.rwin)
 
@@ -410,18 +453,11 @@ function M.open_diffsplit(commit, file, thread, compare_base)
         else
             win = state.lwin
         end
-        print(vim.inspect(thread.comments["edges"][1]["node"].originalCommit["oid"]))
-        local line = resolve_thread_line(thread, thread.comments["edges"][1]["node"].originalCommit["oid"])
-        print(vim.inspect(thread))
-        if vim.api.nvim_buf_line_count(
-            vim.api.nvim_win_get_buf(win)
-        ) < line then
-            lib_notify.notify_popup_with_timeout("The comment is not reachable from this commit.", 7500, "warning")
-            return
-        end
-
         vim.api.nvim_set_current_win(win)
-        vim.api.nvim_win_set_cursor(win, {line, 0})
+        local line = state.thread_id_to_line[thread["id"]]
+        if line ~= nil then
+            vim.api.nvim_win_set_cursor(win, {line, 0})
+        end
         M.toggle_threads(thread["id"])
         return
     end
@@ -459,7 +495,7 @@ function M.toggle_thread_popup()
 
     local thread = threads[1]
 
-    local buf = thread_buffer.render_thread(thread.thread["id"], {1, #threads})
+    local buf = thread_buffer.render_thread(thread.thread["id"], state.thread_id_to_line[thread.thread["id"]], {1, #threads})
     if buf == nil then
         return
     end
@@ -519,7 +555,7 @@ function M.next_thread()
     end
     local thread = threads[cur_thread_idx]
 
-    thread_buffer.render_thread(thread.thread["id"], {cur_thread_idx, #threads}, nil, side)
+    thread_buffer.render_thread(thread.thread["id"], state.thread_id_to_line[thread.thread["id"]], {cur_thread_idx, #threads}, nil, side)
     state.displayed_thread["index"] = cur_thread_idx
     state.displayed_thread["thread_id"] = thread.thread["id"]
 end
@@ -625,7 +661,7 @@ function M.toggle_threads(thread_id)
     end
     local thread = threads[n]
 
-    local buf = thread_buffer.render_thread(thread.thread["id"], {n, #threads}, nil, side)
+    local buf = thread_buffer.render_thread(thread.thread["id"], state.thread_id_to_line[thread.thread["id"]], {n, #threads}, nil, side)
     if buf == nil then
         return
     end
