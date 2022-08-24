@@ -378,12 +378,30 @@ local function map_chunks_to_lines(file)
     end
 end
 
+local function handle_missing_file(thread)
+    local line = thread["originalLine"]
+    if line == vim.NIL then
+        line = thread["line"]
+    end
+    local missing_buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(missing_buf, 0, -1, false, {"This file no longer exists in the pull request."})
+    vim.api.nvim_win_set_buf(0, missing_buf)
+    vim.cmd("vsplit")
+    local buf = thread_buffer.render_thread(thread["id"], line, {1, 1})
+    vim.api.nvim_win_set_buf(0, buf)
+end
+
 -- the commmit object passed in is one which is returned by ghcli.get_commit().
 function M.open_diffsplit(commit, file, thread, compare_base)
     reset_state()
     -- setup the current tabpage for a diff,
     -- when we return from this we'll be inside a right hand diff window
     setup_diff_ui()
+
+    if file == nil then
+        handle_missing_file(thread)
+        return
+    end
 
     state.rwin = vim.api.nvim_get_current_win()
     state.file = file

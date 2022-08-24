@@ -864,12 +864,8 @@ local function open_pr_node(ctx, node)
         -- set refresh to true so diff_view is not opened, we'll open it 
         -- more specifically below
         handlers.commits_handler(sha, true)
-
         local commit = s.pull_state.commits_by_sha[sha]
         local file = s.pull_state.files_by_name[node.thread["path"]]
-        if file == nil then
-            return
-        end
         diff_view.open_diffsplit(commit, file, node.thread, true)
     end
     if node.comment ~= nil then
@@ -882,9 +878,6 @@ local function open_pr_node(ctx, node)
 
         local commit = s.pull_state.commits_by_sha[sha]
         local file = s.pull_state.files_by_name[thread.thread["path"]]
-        if file == nil then
-            return
-        end
         diff_view.open_diffsplit(commit, file, thread.thread, true)
     end
     if node.review ~= nil then
@@ -972,9 +965,6 @@ local function open_pr_review_node(ctx, node)
 
         local commit = s.pull_state.commits_by_sha[s.pull_state.head]
         local file = s.pull_state.files_by_name[node.thread["path"]]
-        if file == nil then
-            return
-        end
         diff_view.open_diffsplit(commit, file, node.thread)
     end
     if node.comment ~= nil then
@@ -987,9 +977,6 @@ local function open_pr_review_node(ctx, node)
         local thread = s.pull_state.review_threads_by_id[node.comment["thread_id"]]
         local commit = s.pull_state.commits_by_sha[s.pull_state.head]
         local file = s.pull_state.files_by_name[thread.thread["path"]]
-        if file == nil then
-            return
-        end
         diff_view.open_diffsplit(commit, file, thread.thread)
     end
 end
