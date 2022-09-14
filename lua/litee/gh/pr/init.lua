@@ -142,7 +142,7 @@ local function on_tab_close()
 end
 
 function M.open_pull_by_number(number)
-    if s.pull_state ~= nil and s.pull_state ~= nil then
+    if s.pull_state ~= nil then
         vim.ui.select(
             {"no", "yes"},
             {prompt = string.format('A pull request is already opened, close it and open pull #%s? ', number)},
@@ -184,21 +184,7 @@ function M.search_pulls()
                         if idx == nil then
                             return
                         end
-                        if s.pull_state ~= nil and s.pull_state ~= nil then
-                            vim.ui.select(
-                                {"no", "yes"},
-                                {prompt = string.format('A pull request is already opened, close it and open pull #%s? ', prs[idx]["number"])},
-                                function(choice)
-                                    if choice == "yes" then
-                                        M.close_pull()
-                                        M.open_pull_by_number(prs[idx]["number"])
-                                        handlers.pr_handler(prs[idx]["number"], false, vim.schedule_wrap(function () on_tab_close() end ))
-                                    end
-                                end
-                            )
-                        else
-                            M.open_pull_by_number(prs[idx]["number"])
-                        end
+                        M.open_pull_by_number(prs[idx]["number"])
                     end
                 )
             end)
@@ -230,20 +216,7 @@ function M.open_pull_request_reviewed_by_user()
                 if idx == nil then
                     return
                 end
-                if s.pull_state ~= nil and s.pull_state ~= nil then
-                    vim.ui.select(
-                        {"no", "yes"},
-                        {prompt = string.format('A pull request is already opened, close it and open pull #%s? ', prs[idx]["number"])},
-                        function(choice)
-                            if choice == "yes" then
-                                M.close_pull()
-                                M.open_pull_by_number(prs[idx]["number"])
-                            end
-                        end
-                    )
-                else
-                    M.open_pull_by_number(prs[idx]["number"])
-                end
+                M.open_pull_by_number(prs[idx]["number"])
             end
         )
     end)
@@ -273,20 +246,7 @@ function M.open_pull_requested_review_user()
                 if idx == nil then
                     return
                 end
-                if s.pull_state ~= nil and s.pull_state ~= nil then
-                    vim.ui.select(
-                        {"no", "yes"},
-                        {prompt = string.format('A pull request is already opened, close it and open pull #%s? ', prs[idx]["number"])},
-                        function(choice)
-                            if choice == "yes" then
-                                M.close_pull()
-                                M.open_pull_by_number(prs[idx]["number"])
-                            end
-                        end
-                    )
-                else
-                    M.open_pull_by_number(prs[idx]["number"])
-                end
+                M.open_pull_by_number(prs[idx]["number"])
             end
         )
     end)
@@ -321,20 +281,7 @@ function M.open_pull(args)
             if idx == nil then
                 return
             end
-            if s.pull_state ~= nil and s.pull_state ~= nil then
-                vim.ui.select(
-                    {"no", "yes"},
-                    {prompt = string.format('A pull request is already opened, close it and open pull #%s? ', prs[idx]["number"])},
-                    function(choice)
-                        if choice == "yes" then
-                            M.close_pull()
-                            M.open_pull_by_number(prs[idx]["number"])
-                        end
-                    end
-                )
-            else
-                M.open_pull_by_number(prs[idx]["number"])
-            end
+            M.open_pull_by_number(prs[idx]["number"])
         end
     )
 end
@@ -425,7 +372,7 @@ function M.close_pr_commits()
     end
     lib_state.put_component_state(s.pull_state.tab, "pr_files", nil)
     s.pull_state.last_opened_commit = nil
-    write_trees(ui_req_ctx())
+    -- write_trees(ui_req_ctx())
     M.clean()
 end
 

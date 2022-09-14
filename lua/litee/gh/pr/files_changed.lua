@@ -76,7 +76,7 @@ function M.build_files_changed_tree(files, depth, prev_tree)
         else
             dir.expanded = true
         end
-        if prev_tree.depth_table[n.depth+1] ~= nil then
+        if prev_tree ~= nil and prev_tree.depth_table[n.depth+1] ~= nil then
             for _, prev in ipairs(prev_tree.depth_table[n.depth+1]) do
                 if prev.key == dir.key then
                     dir.expanded = prev.expanded
