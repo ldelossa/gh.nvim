@@ -218,7 +218,6 @@ function M.render_notifications(notifications)
             table.insert(lines_to_highlight, {#buffer_lines, hi})
             table.insert(marks_to_create, {#buffer_lines-1, noti})
         end
-        table.insert(buffer_lines, "")
     end
 
     -- get all notification buffer window cursors for restore
