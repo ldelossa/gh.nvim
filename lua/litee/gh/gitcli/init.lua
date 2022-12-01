@@ -78,7 +78,13 @@ function M.repo_dirty()
         return nil
     end
     if vim.fn.strlen(out) > 0 then
-        return true
+        -- Process entries line by line and check status kind
+        for line in out:gmatch("([^\n]*)\n?") do
+            -- ?? is an "untracked" file which doesn't need to be stashed on checkout
+            if not line:find("??", 1, true) == 1 then
+                return true
+            end
+        end
     end
     return false
 end
