@@ -272,7 +272,7 @@ Code Reviews:
     review until you explicitly submit or cancel the review.
 
     You can create a review with the `GHStartReview` command, submit it with the `GHSubmitReview` 
-    command and cancel it with the `GHCancelReview` command.
+    command and cancel it with the `GHDeleteReview` command.
 
     Submitted code reviews show up in the panel as well. They are selectable, and when selected
     a new panel is opened which groups the conversation threads by the pull request review.
