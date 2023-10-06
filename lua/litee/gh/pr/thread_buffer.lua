@@ -749,7 +749,7 @@ local function create(body, details)
                body,
                details.path,
                details.line,
-               commit
+               details.side
            )
            if out == nil then
                lib_notify.notify_popup_with_timeout("Failed to create new comment.", 7500, "error")
