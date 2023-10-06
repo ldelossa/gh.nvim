@@ -737,12 +737,6 @@ local function create(body, details)
     else
     -- create comment within the review
        if details.line == details.end_line then
-           local commit = nil
-           if s.pull_state.last_opened_commit ~= nil then
-               commit = s.pull_state.last_opened_commit
-           else
-               commit = s.pull_state.head
-           end
            local out = ghcli.create_comment_review(
                s.pull_state.pr_raw["node_id"],
                s.pull_state.review["node_id"],
