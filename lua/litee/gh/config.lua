@@ -20,12 +20,13 @@ M.config = {
     -- list of highlights to be used within the UI.
     highlights = {
         -- the following highlights will highlight threaded messages in conversation
-        -- buffers. 
+        -- buffers.
         -- you can alternate between two highlights if desired by setting these
         -- to different highlights.
         thread_separator = "GHThreadSep",
         thread_separator_alt = "GHThreadSepAlt"
     },
+    ghcli_extra_args = {},
     -- log all git and gh cli actions to a buffer.
     -- the buffer can be opened with "GHOpenDebugBuffer".
     debug_logging = false,
