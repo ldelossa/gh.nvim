@@ -1,6 +1,7 @@
 local graphql = require('litee.gh.ghcli.graphql')
 local lib_notify = require('litee.lib.notify')
 local debug = require('litee.gh.debug')
+local c = require('litee.gh.config')
 
 local M = {}
 
@@ -71,6 +72,11 @@ local function async_request(args, on_read, paginate, page, paged_data)
             table.insert(args, "-F")
             table.insert(args, "page=" .. page)
         end
+    end
+    if c.config.ghcli_extra_args ~= nil and #c.config.ghcli_extra_args > 0 then
+      for i, v in pairs(c.config.ghcli_extra_args) do
+        table.insert(args, i, v)
+      end
     end
     handle = vim.loop.spawn('gh', {
         args = args,
@@ -274,7 +280,7 @@ function M.get_commit(ref)
     return gh_exec(cmd)
 end
 
-function M.get_commit_async(ref, on_read) 
+function M.get_commit_async(ref, on_read)
     local args = {
         "api",
         "-X",
@@ -284,7 +290,7 @@ function M.get_commit_async(ref, on_read)
     async_request(args, on_read)
 end
 
-function M.get_commit_comments_async(ref, on_read) 
+function M.get_commit_comments_async(ref, on_read)
     local args = {
         "api",
         "-X",
@@ -775,9 +781,9 @@ function M.add_label_async(number, label, on_read)
         "--add-label",
         label
     }
-    -- eat the err code if its a json decode. 
+    -- eat the err code if its a json decode.
     -- TODO: refactor async_request to handle no-json decoding option
-    local swallow = function(err, data) 
+    local swallow = function(err, data)
         if err == "json decode error" then
             on_read(nil, data)
         else
@@ -795,9 +801,9 @@ function M.remove_label_async(number, label, on_read)
         "--remove-label",
         label
     }
-    -- eat the err code if its a json decode. 
+    -- eat the err code if its a json decode.
     -- TODO: refactor async_request to handle no-json decoding option
-    local swallow = function(err, data) 
+    local swallow = function(err, data)
         if err == "json decode error" then
             on_read(nil, data)
         else
@@ -891,7 +897,7 @@ end
 
 M.user = nil
 
--- like get_user but caches the results on the first request and returns the 
+-- like get_user but caches the results on the first request and returns the
 -- cached user on subsequent.
 function M.get_cached_user()
     if M.user == nil then
