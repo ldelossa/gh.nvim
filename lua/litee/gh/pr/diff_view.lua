@@ -433,7 +433,7 @@ function M.open_diffsplit(commit, file, thread, compare_base)
     -- write the old version of the file to /tmp/ and diff it
     local parent_commit = nil
     if compare_base then
-        parent_commit = s.pull_state.commits[1]["parents"][1]["sha"]
+        parent_commit = s.pull_state.pr_raw.base.sha
     else
         parent_commit = commit["parents"][1]["sha"]
     end
