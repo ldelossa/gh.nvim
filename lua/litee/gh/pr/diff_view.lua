@@ -414,19 +414,24 @@ function M.open_diffsplit(commit, file, thread, compare_base)
 
     -- this will be the left side of our diff, we'll create this as a tmp file
     -- with the gitcli command
-    local diff_file = string.format("/tmp/%s", lib_util_path.basename(file["filename"]))
+    local diff_filename = file["filename"]
+    local diff_buffer_name = nil
 
     vim.fn.delete("/tmp/gh-nvim-empty")
     -- if the file is added, open our local file and diff an empty buffer
     if file["status"] == "added" then
         vim.cmd("edit " .. file["filename"])
-        diff_file = "/tmp/gh-nvim-empty"
+        diff_buffer_name = "/tmp/gh-nvim-empty"
     -- if the file is removed, open an empty buffer first and diff the old
     -- old version
     elseif file["status"] == "removed" then
         vim.cmd("edit /tmp/gh-nvim-empty")
     -- in all other cases open our local file and diff the old version.
     else
+        -- if the file was renamed, diff the previous filename
+        if file["status"] == "renamed" then
+            diff_filename = file["previous_filename"]
+        end
         vim.cmd("edit " .. file["filename"])
     end
 
@@ -438,10 +443,11 @@ function M.open_diffsplit(commit, file, thread, compare_base)
         parent_commit = commit["parents"][1]["sha"]
     end
 
-    gitcli.git_show_and_write(parent_commit, file["filename"], diff_file)
-    vim.cmd("vert diffsplit " .. diff_file)
+    diff_buffer_name = diff_buffer_name or string.format("/tmp/%s", lib_util_path.basename(diff_filename))
+    gitcli.git_show_and_write(parent_commit, diff_filename, diff_buffer_name)
+    vim.cmd("vert diffsplit " .. diff_buffer_name)
     vim.cmd("q")
-    vim.cmd("vert diffsplit " .. diff_file)
+    vim.cmd("vert diffsplit " .. diff_buffer_name)
 
     -- we are now in left diff window, bookkeep this and our diff buffers
     state.lwin = vim.api.nvim_get_current_win()
