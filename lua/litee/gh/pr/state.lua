@@ -447,6 +447,33 @@ function M.get_pull_files_async(pull_number, cb)
     end)
 end
 
+function M.get_pull_files_viewed_state_async(pull_number, cb)
+    vim.schedule(function()
+        vim.api.nvim_echo({{spinner() .. " fetching pull request files viewed state", "LTInfo"}}, false, {})
+    end)
+
+    local fence_id = add_fence("get_pull_files_viewed_state_async")
+    ghcli.get_pull_files_viewed_state_async(pull_number, function(err, data)
+        if err then
+            vim.schedule(function ()
+                lib_notify.notify_popup_with_timeout("Failed to fetch pull request files viewed state: " .. err, 7500, "error")
+            end)
+            return
+        end
+
+        if not check_fence("get_pull_files_async", fence_id) then
+            cb()
+            return
+        end
+
+        local files = data.data.repository.pullRequest.files.edges;
+        for _, f in ipairs(files) do
+            M.pull_state.files_by_name[f.node["path"]].viewed_state = f.node["viewerViewedState"]
+        end
+        cb()
+    end)
+end
+
 function M.get_user_data_async(cb)
     vim.schedule(function() vim.api.nvim_echo({{spinner() .. " fetching pull request files", "LTInfo"}}, false, {}) end)
     local fence_id = add_fence("get_user_data_async")
@@ -513,16 +540,18 @@ function M.load_state_async(pull_number, on_load)
     M.get_pr_data_async(pull_number, function()
         M.get_user_data_async(function()
             M.get_pull_files_async(pull_number, function()
-                M.get_pull_issue_comments_async(pull_number, function()
-                    M.get_reviews_async(pull_number, M.pull_state.user["login"], function()
-                        M.get_review_threads_async(pull_number, function()
-                            M.get_commits_async(pull_number, function()
-                                M.get_check_runs(
-                                    function ()
-                                        vim.schedule(function() vim.api.nvim_echo({{spinner() .. " successfully fetched all PR state.", "LTSuccess"}}, false, {}) end)
-                                        vim.schedule(on_load)
-                                    end
-                                )
+                M.get_pull_files_viewed_state_async(pull_number, function()
+                    M.get_pull_issue_comments_async(pull_number, function()
+                        M.get_reviews_async(pull_number, M.pull_state.user["login"], function()
+                            M.get_review_threads_async(pull_number, function()
+                                M.get_commits_async(pull_number, function()
+                                    M.get_check_runs(
+                                        function ()
+                                            vim.schedule(function() vim.api.nvim_echo({{spinner() .. " successfully fetched all PR state.", "LTSuccess"}}, false, {}) end)
+                                            vim.schedule(on_load)
+                                        end
+                                    )
+                                end)
                             end)
                         end)
                     end)

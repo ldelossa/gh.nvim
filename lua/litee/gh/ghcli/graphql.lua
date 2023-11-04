@@ -629,4 +629,49 @@ query ($name: String!, $owner: String!, $pull_number: Int!) {
     }
 }
 ]]
+
+M.pull_files_viewed_states_query = [[
+query($name: String!, $owner: String!, $pull_number: Int!) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $pull_number) {
+      id
+      files(first: 50) {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+        edges {
+          node {
+            path
+            viewerViewedState
+          }
+        }
+      }
+    }
+  }
+}
+]]
+
+M.pull_files_viewed_states_query_cursor = [[
+query($name: String!, $owner: String!, $pull_number: Int!, $cursor: String!) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $pull_number) {
+      id
+      files(first: 50, after: $cursor) {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+        edges {
+          node {
+            path
+            viewerViewedState
+          }
+        }
+      }
+    }
+  }
+}
+]]
+
 return M
