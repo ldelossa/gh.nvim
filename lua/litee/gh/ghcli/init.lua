@@ -463,6 +463,61 @@ function M.get_review_threads_async(pull_number, on_read)
     async_request(args, on_read)
 end
 
+function M.get_pull_files_viewed_state_async(pull_number, on_read)
+    local args = {
+        'api',
+        'graphql',
+        '-F',
+        'owner={owner}',
+        '-F',
+        'name={repo}',
+        '-F',
+        string.format('pull_number=%d', pull_number),
+        '-f',
+        string.format('query=%s', graphql.pull_files_viewed_states_query)
+    }
+
+    local paginated_data = nil
+
+    local function paginate(err, data)
+        if err then
+            vim.schedule(function () lib_notify.notify_popup_with_timeout("Failed to fetch pr files viewed state: " .. err, 7500, "error") end)
+            return
+        end
+
+        if paginated_data == nil then
+            paginated_data = data
+        else
+            for _, edge in ipairs(data["data"]["repository"]["pullRequest"]["files"]["edges"]) do
+                table.insert(paginated_data["data"]["repository"]["pullRequest"]["files"]["edges"], edge)
+            end
+        end
+
+        local hasNextPage = data["data"]["repository"]["pullRequest"]["files"]["pageInfo"]["hasNextPage"]
+        local endCursor = data["data"]["repository"]["pullRequest"]["files"]["pageInfo"]["endCursor"]
+        if hasNextPage then
+            local args = {
+                'api',
+                'graphql',
+                '-F',
+                'owner={owner}',
+                '-F',
+                'name={repo}',
+                '-F',
+                string.format('pull_number=%d', pull_number),
+                '-F',
+                string.format('cursor=%s', endCursor),
+                '-f',
+                string.format('query=%s', graphql.pull_files_viewed_states_query_cursor)
+            }
+            async_request(args, paginate)
+        else
+            on_read(err, paginated_data)
+        end
+    end
+    async_request(args, paginate)
+end
+
 -- because graphql really sucks, write a special paginated function for this.
 function M.get_review_threads_async_paginated(pull_number, on_read)
     local args = {
@@ -480,7 +535,7 @@ function M.get_review_threads_async_paginated(pull_number, on_read)
 
     local paginated_data = nil
 
-    function paginate(err, data)
+    local function paginate(err, data)
         if err then
             vim.schedule(function () lib_notify.notify_popup_with_timeout("Failed to fetch review threads: " .. err, 7500, "error") end)
             return
