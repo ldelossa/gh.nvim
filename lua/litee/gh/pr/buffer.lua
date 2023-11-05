@@ -18,13 +18,13 @@ function M.setup_buffer(name, buf, tab, node_handler, details_handler)
 
     -- set buf options
     vim.api.nvim_buf_set_name(buf, name .. ":" .. tab)
-    vim.api.nvim_buf_set_option(buf, 'bufhidden', 'hide')
-    vim.api.nvim_buf_set_option(buf, 'filetype', 'pr')
-    vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
-    vim.api.nvim_buf_set_option(buf, 'modifiable', false)
-    vim.api.nvim_buf_set_option(buf, 'swapfile', false)
-    vim.api.nvim_buf_set_option(buf, 'textwidth', 0)
-    vim.api.nvim_buf_set_option(buf, 'wrapmargin', 0)
+    vim.api.nvim_set_option_value('bufhidden', 'hide', { buf = buf })
+    vim.api.nvim_set_option_value('filetype', 'pr', { buf = buf })
+    vim.api.nvim_set_option_value('buftype', 'nofile', { buf = buf })
+    vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
+    vim.api.nvim_set_option_value('swapfile', false, { buf = buf })
+    vim.api.nvim_set_option_value('textwidth', 0, { buf = buf })
+    vim.api.nvim_set_option_value('wrapmargin', 0, { buf = buf })
 
     -- set buffer local keymaps
     if not config.disable_keymaps then
