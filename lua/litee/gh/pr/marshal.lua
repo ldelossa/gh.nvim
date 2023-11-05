@@ -143,7 +143,11 @@ local function marshal_file_node(node)
     if node.file["state"] ~= vim.NIL then
         detail = node.file["status"]
     end
-    icon = config.icon_set["File"]
+    if node.file["viewed_state"] == "VIEWED" then
+        icon = config.icon_set["Check"]
+    else
+        icon = config.icon_set["File"]
+    end
 
     return name, detail, icon
 end
