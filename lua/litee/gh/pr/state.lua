@@ -160,7 +160,7 @@ function M.remove_notification(id, cb)
 end
 
 local spinner_state = -1
-function spinner()
+local function spinner()
     local spinners = {[0] = "⣾", [1] = "⣽", [2] = "⣻", [3] = "⢿", [4] = "⡿", [5] = "⣟", [6] = "⣯", [7] = "⣷"}
     spinner_state = spinner_state + 1
     return spinners[spinner_state%8]

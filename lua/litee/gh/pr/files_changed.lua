@@ -89,7 +89,7 @@ function M.build_files_changed_tree(files, depth, prev_tree)
         return dir
     end
 
-    for p, file in pairs(files) do
+    for _, file in pairs(files) do
         local dir = lib_path.parent_dir(file["filename"])
         local dir_node = recursive_mkdir(dir)
 
