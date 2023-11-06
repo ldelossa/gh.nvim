@@ -74,6 +74,26 @@ are required for this plugin to work.
 `gh.nvim` relies on [Litee.nvim](https://github.com/ldelossa/litee.nvim). To setup `gh.nvim`
 with the default configuration add the following:
 
+Using [lazy.nvim](https://github.com/folke/lazy.nvim)
+
+```lua
+{
+    "ldelossa/gh.nvim",
+    dependencies = {
+        {
+        "ldelossa/litee.nvim",
+        config = function()
+            require("litee.lib").setup()
+        end,
+        },
+    },
+    config = function()
+        require("litee.gh").setup()
+    end,
+}
+
+```
+
 Using [packer.nvim](https://github.com/wbthomason/packer.nvim)
 
 ```lua
