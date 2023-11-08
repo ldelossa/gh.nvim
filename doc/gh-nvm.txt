@@ -330,6 +330,8 @@ local commands = {
     {name = "GHNextThread", callback = dv.next_thread, opts = {}},
     -- when cursor is on a line which can be commented in a diff view, create a comment
     {name = "GHCreateThread", callback = dv.create_comment, opts = {range=true}},
+    -- toggle viewed state of the file being diffed
+    {name = "GHToggleViewed", callback = dv.toggle_file_viewed, opts = {}},
     -- close a PR and cleanup any state associated with it (happens on tab and neovim close as well)
     {name = "GHClosePR", callback = pr.close_pull, opts = {}},
     -- close the Commit panel
