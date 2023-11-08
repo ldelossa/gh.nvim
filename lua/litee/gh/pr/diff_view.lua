@@ -7,6 +7,7 @@ local config        = require('litee.gh.config')
 
 local s             = require('litee.gh.pr.state')
 local thread_buffer = require('litee.gh.pr.thread_buffer')
+local ghcli         = require('litee.gh.ghcli')
 local gitcli        = require('litee.gh.gitcli')
 
 -- works as a "once" flag to lazy init signs.
@@ -790,6 +791,30 @@ function M.create_comment(args)
         index = nil,
         thread_id = nil,
     }
+end
+
+function M.toggle_file_viewed()
+    local cur_win = vim.api.nvim_get_current_win()
+    -- return if not in one of the diff buffers
+    if state == nil or (cur_win ~= state.lwin and cur_win ~= state.rwin) then
+        return
+    end
+
+    local filename = state.file["filename"]
+    local toggle_viewed_state = nil
+    if s.pull_state.files_by_name[filename].viewed_state ==  'VIEWED' then
+        toggle_viewed_state = ghcli.mark_file_as_unviewed
+    else
+        toggle_viewed_state = ghcli.mark_file_as_viewed
+    end
+
+    toggle_viewed_state(
+        s.pull_state.pr_raw["node_id"],
+        state.file["filename"],
+        function()
+            vim.cmd("GHRefreshPR")
+        end
+    )
 end
 
 return M

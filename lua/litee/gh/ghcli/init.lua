@@ -518,6 +518,36 @@ function M.get_pull_files_viewed_state_async(pull_number, on_read)
     async_request(args, paginate)
 end
 
+function M.mark_file_as_viewed(pull_request_id, path, on_read)
+    local args = {
+        "api",
+        "graphql",
+        "-F",
+        string.format("pull_request_id=%s", pull_request_id),
+        "-F",
+        string.format("path=%s", path),
+        "-f",
+        string.format("query=%s", graphql.mark_file_as_viewed),
+    }
+
+    async_request(args, on_read)
+end
+
+function M.mark_file_as_unviewed(pull_request_id, path, on_read)
+    local args = {
+        "api",
+        "graphql",
+        "-F",
+        string.format("pull_request_id=%s", pull_request_id),
+        "-F",
+        string.format("path=%s", path),
+        "-f",
+        string.format("query=%s", graphql.mark_file_as_unviewed),
+    }
+
+    async_request(args, on_read)
+end
+
 -- because graphql really sucks, write a special paginated function for this.
 function M.get_review_threads_async_paginated(pull_number, on_read)
     local args = {

@@ -674,4 +674,20 @@ query($name: String!, $owner: String!, $pull_number: Int!, $cursor: String!) {
 }
 ]]
 
+M.mark_file_as_viewed = [[
+mutation ($pull_request_id: ID!, $path: String!) {
+	markFileAsViewed( input: {pullRequestId: $pull_request_id, path: $path}) {
+	  clientMutationId
+	}
+}
+]]
+
+M.mark_file_as_unviewed = [[
+mutation ($pull_request_id: ID!, $path: String!) {
+	unmarkFileAsViewed( input: {pullRequestId: $pull_request_id, path: $path}) {
+	  clientMutationId
+	}
+}
+]]
+
 return M
