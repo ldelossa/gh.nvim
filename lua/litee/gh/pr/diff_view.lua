@@ -449,6 +449,8 @@ function M.open_diffsplit(commit, file, thread, compare_base)
     vim.cmd("vert diffsplit " .. diff_buffer_name)
     vim.cmd("q")
     vim.cmd("vert diffsplit " .. diff_buffer_name)
+    -- make the tmp buffer ephemeral
+    vim.api.nvim_set_option_value('bufhidden', 'delete', { buf = 0 })
 
     -- we are now in left diff window, bookkeep this and our diff buffers
     state.lwin = vim.api.nvim_get_current_win()
