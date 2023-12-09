@@ -6,6 +6,13 @@ local lib_tree_node = require('litee.lib.tree.node')
 local M = {}
 
 function M.build_files_changed_tree(files, depth, prev_tree)
+    -- Sort filenames to build the tree in a deterministic way
+    local sorted_filenames = {}
+    for filename in pairs(files) do
+        table.insert(sorted_filenames, filename)
+    end
+    table.sort(sorted_filenames)
+
     local prev_root = nil
     if prev_tree ~= nil and prev_tree.depth_table[depth] ~= nil then
         for _, prev_node in ipairs(prev_tree.depth_table[depth]) do
@@ -89,7 +96,8 @@ function M.build_files_changed_tree(files, depth, prev_tree)
         return dir
     end
 
-    for _, file in pairs(files) do
+    for _, filename in pairs(sorted_filenames) do
+        local file = files[filename]
         local dir = lib_path.parent_dir(file["filename"])
         local dir_node = recursive_mkdir(dir)
 
