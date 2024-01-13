@@ -932,6 +932,16 @@ function M.get_git_protocol()
   return protocol:gsub("[\r\n]", "")
 end
 
+function M.get_token()
+  local cmd = [[gh auth token]]
+  local token, e = gh_exec(cmd, true);
+  if token == nil then
+    return nil, e
+  end
+
+  return token:gsub("[\r\n]", "")
+end
+
 function M.list_repo_contributors_async(on_read)
     local args = {
         'api',
