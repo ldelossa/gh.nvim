@@ -45,6 +45,12 @@ function M.ui_handler(refresh, on_load_ui)
     -- refresh var from closure.
     if not refresh then
         local remote_url = s.get_pr_remote_url()
+        local token = ghcli.get_token()
+        if token~=nil then
+          remote_url = remote_url:gsub("https://", "")
+          remote_url = "https://" .. token .. "@" .. remote_url
+        end
+
         local remote_name = "litee-gh_" .. s.pull_state.pr_raw["head"]["repo"]["full_name"]
         local head_branch = s.pull_state.pr_raw["head"]["ref"]
 
