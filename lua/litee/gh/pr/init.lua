@@ -24,6 +24,8 @@ M.autocmds = {}
 local function open_nodes_url(node)
     if vim.fn.has('mac') == 1 then
         vim.fn.system({ 'open', node.url })
+    elseif vim.fn.has('windows') == 1 then
+        vim.fn.system({ 'cmd', '/c', 'start', node.url })
     else
         vim.fn.system({ 'xdg-open', node.url })
     end
