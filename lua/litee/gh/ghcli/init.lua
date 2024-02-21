@@ -29,8 +29,18 @@ end
 -- if nil is returned the second returned argument is the error output.
 --
 -- if successful the json is decoded into a lua dictionary and returned.
-local function gh_exec(cmd, no_json_decode)
-    local output = vim.fn.system(cmd)
+local function gh_exec(args, no_json_decode, no_additional_arguments)
+    if not no_additional_arguments then
+      if c.config.ghcli_extra_args ~= nil and #c.config.ghcli_extra_args > 0 then
+        for i, v in pairs(c.config.ghcli_extra_args) do
+          table.insert(args, i, v)
+        end
+      end
+    end
+    table.insert(args, "gh", 1)
+
+    local output = vim.fn.system(args)
+
     if vim.v.shell_error ~= 0 then
         debug.log("[gh] cmd: " .. vim.inspect(cmd) .. " out:\n" .. vim.inspect(output), "error")
         return nil
@@ -147,22 +157,22 @@ local function async_request(args, on_read, paginate, page, paged_data)
 end
 
 function M.list_collaborators_async(on_read)
-    local args = {"api", "-X", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/collaborators"}
+    local args = {"api", "--method", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/collaborators"}
     async_request(args, on_read, true)
 end
 
 function M.list_repo_issues_async(on_read)
-    local args = {"api", "-X", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/issues"}
+    local args = {"api", "--method", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/issues"}
     async_request(args, on_read)
 end
 
 function M.list_all_repo_issues_async(on_read)
-    local args = {"api", "-X", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/issues", "-q", '. | map(select(. | (has("pull_request") | not)))'}
+    local args = {"api", "--method", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/issues", "-q", '. | map(select(. | (has("pull_request") | not)))'}
     async_request(args, on_read, true)
 end
 
 function M.get_user()
-    local args = {"gh", "api", "/user"}
+    local args = {"api", "/user"}
     return gh_exec(args)
 end
 
@@ -172,7 +182,7 @@ function M.get_user_async(on_read)
 end
 
 function M.get_pull_files_async(pull_number, on_read)
-    local args = {"api", "-X", "GET", "-F", "per_page=100", string.format("/repos/{owner}/{repo}/pulls/%d/files", pull_number)}
+    local args = {"api", "--method", "GET", "-F", "per_page=100", string.format("/repos/{owner}/{repo}/pulls/%d/files", pull_number)}
     async_request(args, on_read, true)
 end
 
@@ -180,7 +190,13 @@ end
 --
 -- return @table: https://docs.github.com/en/rest/reference/pulls#list-pull-requests
 function M.list_pulls()
-    local cmd = [[gh pr list --limit 100 --json "number,title,author"]]
+    local cmd = {
+      "pr",
+      "list",
+      "--limit",
+      "100",
+      "--json",
+      'number,title,author'}
     return gh_exec(cmd)
 end
 
@@ -191,7 +207,7 @@ function M.search_pulls(owner, name, qq, on_read)
     if qq ~= nil then
         q  = q .. qq
     end
-    local args = {"api", "-X", "GET", "-F", "per_page=100", "search/issues", "-f", q}
+    local args = {"api", "--method", "GET", "-F", "per_page=100", "search/issues", "-f", q}
     async_request(args, on_read, true)
 end
 
@@ -201,7 +217,7 @@ function M.search_issues(owner, name, qq, on_read)
     if qq ~= nil then
         q  = q .. qq
     end
-    local args = {"api", "-X", "GET", "-F", "per_page=100", "search/issues", "-f", q}
+    local args = {"api", "--method", "GET", "-F", "per_page=100", "search/issues", "-f", q}
     async_request(args, on_read, true)
 end
 
@@ -211,42 +227,42 @@ function M.get_pull_async(pull_number, on_read)
 end
 
 function M.list_pulls_async(on_read)
-    local args = {"api", "-X", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/pulls"}
+    local args = {"api", "--method", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/pulls"}
     async_request(args, on_read)
 end
 
 function M.list_all_pulls_async(on_read)
-    local args = {"api", "-X", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/pulls"}
+    local args = {"api", "--method", "GET", "-F", "per_page=100", "/repos/{owner}/{repo}/pulls"}
     async_request(args, on_read, true)
 end
 
 function M.list_requested_reviews(owner, repo, on_read)
     local q = string.format("q=repo:%s/%s is:pr is:open review-requested:@me", owner, repo)
-    local args = {"api", "-X", "GET", "-F", "per_page=100", "search/issues", "-f", q}
+    local args = {"api", "--method", "GET", "-F", "per_page=100", "search/issues", "-f", q}
     async_request(args, on_read, true)
 end
 
 function M.list_requested_reviews_user(owner, repo, on_read)
     local q = string.format("q=repo:%s/%s is:pr is:open user-review-requested:@me", owner, repo)
-    local args = {"api", "-X", "GET", "-F", "per_page=100", "search/issues", "-f", q}
+    local args = {"api", "--method", "GET", "-F", "per_page=100", "search/issues", "-f", q}
     async_request(args, on_read, true)
 end
 
 function M.list_pulls_reviewed_by_user(owner, repo, on_read)
     local q = string.format("q=repo:%s/%s is:pr is:open reviewed-by:@me", owner, repo)
-    local args = {"api", "-X", "GET", "-F", "per_page=100", "search/issues", "-f", q}
+    local args = {"api", "--method", "GET", "-F", "per_page=100", "search/issues", "-f", q}
     async_request(args, on_read, true)
 end
 
 function M.get_repo_name_owner()
-    local cmd = [[gh repo view --json name,owner]]
+    local cmd = {"repo", "view", "--json", "name,owner"}
     return gh_exec(cmd)
 end
 
 function M.update_issue_body_async(number, body, on_read)
     local args = {
         'api',
-        "-X",
+        "--method",
         "POST",
         string.format("/repos/{owner}/{repo}/issues/%d", number),
         '-f',
@@ -258,7 +274,7 @@ end
 function M.update_pull_body_async(pull_number, body, on_read)
     local args = {
         'api',
-        "-X",
+        "--method",
         "POST",
         string.format("/repos/{owner}/{repo}/pulls/%d", pull_number),
         '-f',
@@ -268,7 +284,14 @@ function M.update_pull_body_async(pull_number, body, on_read)
 end
 
 function M.get_pull_commits_async(pull_number, on_read)
-    local args = {"api", "-X", "GET", "-F", "per_page=100",  string.format([[/repos/{owner}/{repo}/pulls/%d/commits]], pull_number)}
+    local args = {
+      "api",
+      "--method",
+      "GET",
+      "-F",
+      "per_page=100",
+       string.format("/repos/{owner}/{repo}/pulls/%d/commits", pull_number)
+    }
     async_request(args, on_read)
 end
 
@@ -276,14 +299,17 @@ end
 --
 -- return @table: https://docs.github.com/en/rest/reference/commits#get-a-commit
 function M.get_commit(ref)
-    local cmd = string.format([[gh api /repos/{owner}/{repo}/commits/%s]], ref)
+    local cmd = {
+      "api",
+      string.format("/repos/{owner}/{repo}/commits/%s", ref)
+    }
     return gh_exec(cmd)
 end
 
 function M.get_commit_async(ref, on_read)
     local args = {
         "api",
-        "-X",
+        "--method",
         "GET",
         string.format([[/repos/{owner}/{repo}/commits/%s]], ref)
     }
@@ -293,7 +319,7 @@ end
 function M.get_commit_comments_async(ref, on_read)
     local args = {
         "api",
-        "-X",
+        "--method",
         "GET",
         "-F",
         "per_page=100",
@@ -303,17 +329,36 @@ function M.get_commit_comments_async(ref, on_read)
 end
 
 function M.create_commit_comment(sha, body)
-    local cmd = string.format([[gh api -X POST /repos/{owner}/{repo}/commits/%s/comments -f body=%s]], sha, body)
+    local cmd = {
+      "api",
+      "--method",
+      "POST",
+      string.format([[/repos/{owner}/{repo}/commits/%s/comments]], sha),
+      "-f",
+      string.format("body=%s", body)
+    }
     return gh_exec(cmd)
 end
 
 function M.update_commit_comment(id, body)
-    local cmd = string.format([[gh api -X PATCH /repos/{owner}/{repo}/comments/%d -f body=%s]], id, body)
+    local cmd = {
+      "api",
+      "--method",
+      "PATCH",
+      string.format([[/repos/{owner}/{repo}/comments/%d]], id),
+      "-f",
+      string.format("body=%s", body)
+    }
     return gh_exec(cmd)
 end
 
 function M.delete_commit_comment(id)
-    local cmd = string.format([[gh api -X DELETE /repos/{owner}/{repo}/comments/%d]], id)
+    local cmd = {
+      "api",
+      "--method",
+      "DELETE",
+      string.format([[/repos/{owner}/{repo}/comments/%d]], id)
+    }
     return gh_exec(cmd, true)
 end
 
@@ -389,17 +434,36 @@ function M.get_pull_issue_comments_async_paginated(pull_number, on_read)
 end
 
 function M.create_pull_issue_comment(number, body)
-    local cmd = string.format([[gh api -X POST /repos/{owner}/{repo}/issues/%d/comments -f body=%s]], number, body)
+    local cmd = {
+      "api",
+      "--method",
+      "POST",
+      string.format("/repos/{owner}/{repo}/issues/%s/comments", number),
+      "-f",
+      string.format("body=%s", body)
+    }
     return gh_exec(cmd)
 end
 
 function M.update_pull_issue_comment(id, body)
-    local cmd = string.format([[gh api -X PATCH /repos/{owner}/{repo}/issues/comments/%d -f body=%s]], id, body)
+    local cmd = {
+      "api",
+      "--method",
+      "PATCH",
+      string.format("/repos/{owner}/{repo}/issues/comments/%d", id),
+      "-f",
+      string.format("body=%s", body)
+    }
     return gh_exec(cmd)
 end
 
 function M.delete_pull_issue_comment(id)
-    local cmd = string.format([[gh api -X DELETE /repos/{owner}/{repo}/issues/comments/%d]], id)
+    local cmd = {
+      "api",
+      "--method",
+      "DELETE",
+      string.format("/repos/{owner}/{repo}/issues/comments/%d", id)
+    }
     return gh_exec(cmd, true)
 end
 
@@ -414,7 +478,7 @@ end
 function M.get_issue_comments_async(number, on_read)
     local args = {
         'api',
-        '-X',
+        '--method',
         'GET',
         '-F',
         'per_page=100',
@@ -426,7 +490,7 @@ end
 function M.get_issue_comment_reactions_async(id, on_read)
     local args = {
         'api',
-        '-X',
+        '--method',
         'GET',
         '-F',
         'per_page=100',
@@ -438,7 +502,7 @@ end
 function M.get_commit_reactions_async(id, on_read)
     local args = {
         'api',
-        '-X',
+        '--method',
         'GET',
         '-F',
         'per_page=100',
@@ -605,10 +669,14 @@ function M.get_review_threads_async_paginated(pull_number, on_read)
 end
 
 function M.resolve_thread(thread_id)
-    local cmd = string.format([[gh api graphql -F thread_id="%s" -f query='%s']],
-        thread_id,
-        graphql.resolve_thread
-    )
+    local cmd = {
+      "api",
+      "graphql",
+      "-F",
+      string.format('thread_id="%s"', thread_id),
+      "-f",
+      string.format("query='%s'", graphql.resolve_thread)
+    }
     local resp = gh_exec(cmd)
     if resp == nil then
         return nil
@@ -617,10 +685,14 @@ function M.resolve_thread(thread_id)
 end
 
 function M.unresolve_thread(thread_id)
-    local cmd = string.format([[gh api graphql -F thread_id="%s" -f query='%s']],
-        thread_id,
-        graphql.unresolve_thread
-    )
+    local cmd = {
+      "api",
+      "graphql",
+      "-F",
+      string.format('thread_id="%s"', thread_id),
+      "-f",
+      string.format("query='%s'", graphql.unresolve_thread)
+    }
     local resp = gh_exec(cmd)
     if resp == nil then
         return nil
@@ -629,15 +701,26 @@ function M.unresolve_thread(thread_id)
 end
 
 function M.create_comment(pull_number, commit_sha, path, position, side, line, body)
-    local cmd = string.format([[gh api --method POST -H "Accept: application/vnd.github.v3+json" /repos/{owner}/{repo}/pulls/%d/comments -f commit_id=%s -f path=%s -f side=%s -F position=%d -F line=%d -f body=%s]],
-        pull_number,
-        commit_sha,
-        path,
-        side,
-        position,
-        line,
-        body
-    )
+    local cmd = {
+      "api",
+      "--method",
+      "POST",
+      "-H",
+      "Accept: application/vnd.github.v3+json",
+      string.format("/repos/{owner}/{repo}/pulls/%d/comments", pull_number),
+      "-f",
+      string.format("commit_id=%s", commit_sha),
+      "-f",
+      string.format("path=%s", path),
+      "-f",
+      string.format("side=%s", side),
+      "-F",
+      string.format("position=%d", position),
+      "-F",
+      string.format("line=%d", line),
+      "-F",
+      string.format("body=%s", body)
+    }
     local out = gh_exec(cmd)
     if out == nil then
         return nil
@@ -646,17 +729,30 @@ function M.create_comment(pull_number, commit_sha, path, position, side, line, b
 end
 
 function M.create_comment_multiline(pull_number, commit_sha, path, position, side, start_line, line, body)
-    local cmd = string.format([[gh api --method POST -H "Accept: application/vnd.github.v3+json" /repos/{owner}/{repo}/pulls/%d/comments -f commit_id=%s -f path=%s -f start_side=%s -f side=%s -F position=%d -F start_line=%d -F line=%d -f body=%s]],
-        pull_number,
-        commit_sha,
-        path,
-        side,
-        side,
-        position,
-        start_line,
-        line,
-        body
-    )
+    local cmd = {
+      "api",
+      "--method",
+      "POST",
+      "-H",
+      "Accept: application/vnd.github.v3+json",
+      string.format("/repos/{owner}/{repo}/pulls/%d/comments", pull_number),
+      "-f",
+      string.format("commit_id=%s", commit_sha),
+      "-f",
+      string.format("path=%s", path),
+      "-f",
+      string.format("start_side=%s", side),
+      "-f",
+      string.format("side=%s", side),
+      "-F",
+      string.format("position=%d", position),
+      "-F",
+      string.format("start_line=%d", start_line),
+      "-F",
+      string.format("line=%d", line),
+      "-F",
+      string.format("body=%s", body)
+    }
     local out = gh_exec(cmd)
     if out == nil then
         return nil
@@ -667,15 +763,24 @@ end
 -- this is a graphql query so pass use the node_id for each argument that wants
 -- and id.
 function M.create_comment_review(pull_id, review_id, body, path, line, side)
-    local cmd = string.format([[gh api graphql -F pull="%s" -F review="%s" -F body=%s -F path="%s" -F line=%d -F side=%s -f query='%s']],
-        pull_id,
-        review_id,
-        body,
-        path,
-        line,
-        side,
-        graphql.create_comment_review
-    )
+    local cmd = {
+      "api",
+      "graphql",
+      "-F",
+      string.format("pull=%s", pull_id),
+      "-F",
+      string.format("review=%s", review_id),
+      "-F",
+      string.format("body=%s", body),
+      "-F",
+      string.format("path=%s", path),
+      "-F",
+      string.format("line=%d", line),
+      "-F",
+      string.format("side=%s", side)
+      "-f",
+      string.format("query=%s", graphql.create_comment_review)
+    }
     local resp = gh_exec(cmd)
     if resp == nil then
         return nil
@@ -686,17 +791,28 @@ end
 -- this is a graphql query so pass use the node_id for each argument that wants
 -- and id.
 function M.create_comment_review_multiline(pull_id, review_id, body, path, start_line, line, side)
-    local cmd = string.format([[gh api graphql -F pull="%s" -F review="%s" -F body=%s -F path="%s" -F start_line=%d -F line=%d -F start_side=%s -F side=%s -f query='%s']],
-        pull_id,
-        review_id,
-        body,
-        path,
-        start_line,
-        line,
-        side,
-        side,
-        graphql.create_comment_review_multiline
-    )
+    local cmd = {
+      "api",
+      "graphql",
+      "-F",
+      string.format("pull=%s", pull_id),
+      "-F",
+      string.format("review=%s", review_id),
+      "-F",
+      string.format("body=%s", body),
+      "-F",
+      string.format("path=%s", path),
+      "-F",
+      string.format("start_line=%d", start_line),
+      "-F",
+      string.format("line=%d", line),
+      "-F",
+      string.format("start_side=%s", side)
+      "-F",
+      string.format("side=%s", side)
+      "-f",
+      string.format("query=%s", graphql.create_comment_review_multiline)
+    }
     local resp = gh_exec(cmd)
     if resp == nil then
         return nil
@@ -706,11 +822,16 @@ end
 
 -- reply_comment replies to a comment outside of any review.
 function M.reply_comment(pull_number, comment_rest_id, body)
-    local cmd = string.format([[gh api --method POST -H "Accept: application/vnd.github.v3+json" /repos/{owner}/{repo}/pulls/%d/comments/%s/replies -f body=%s]],
-        pull_number,
-        comment_rest_id,
-        body
-    )
+    local cmd = {
+      "api",
+      "--method",
+      "POST",
+      "-H",
+      "Accept: application/vnd.github.v3+json",
+       string.format("/repos/{owner}/{repo}/pulls/%d/comments/%s/replies", pull_number, comment_rest_id),
+       "-f",
+       string.format("body=%s", body),
+    }
     local out = gh_exec(cmd)
     if out == nil then
         return nil
@@ -721,14 +842,22 @@ end
 -- reply_comment_review replies to a comment inside a review.
 -- this is a graphql query so use "node_id" for all ids.
 function M.reply_comment_review(pull_id, review_id, commit_sha, body, reply_id)
-    local cmd = string.format([[gh api graphql -F pull="%s" -F review="%s" -F commit="%s" -F body=%s -F reply="%s" -f query='%s']],
-        pull_id,
-        review_id,
-        commit_sha,
-        body,
-        reply_id,
-        graphql.reply_comment_review
-    )
+    local cmd = {
+      "api",
+      "graphql",
+      "-F",
+      string.format("pull=%s", pull_id),
+      "-F",
+      string.format("review=%s", review_id),
+      "-F",
+      string.format("commit=%s", commit_sha),
+      "-F",
+      string.format("body=%s", body),
+      "-F",
+      string.format("reply=%d", reply_id),
+      "-f",
+      string.format("query=%s", graphql.reply_comment_review)
+    }
     local resp = gh_exec(cmd)
     if resp == nil then
         return nil
@@ -737,10 +866,16 @@ function M.reply_comment_review(pull_id, review_id, commit_sha, body, reply_id)
 end
 
 function M.update_comment(comment_rest_id, body)
-    local cmd = string.format([[gh api --method PATCH -H "Accept: application/vnd.github.v3+json" /repos/{owner}/{repo}/pulls/comments/%d -f body=%s]],
-        comment_rest_id,
-        body
-    )
+    local cmd = {
+      "api",
+      "--method",
+      "PATCH",
+      "-H",
+      "Accept: application/vnd.github.v3+json",
+      string.format("/repos/{owner}/{repo}/pulls/comments/%d", comment_rest_id),
+      "-f",
+      string.format("body=%s", body),
+    }
     local out = gh_exec(cmd)
     if out == nil then
         return nil
@@ -749,9 +884,14 @@ function M.update_comment(comment_rest_id, body)
 end
 
 function M.delete_comment(comment_rest_id)
-    local cmd = string.format([[gh api --method DELETE -H "Accept: application/vnd.github.v3+json" /repos/{owner}/{repo}/pulls/comments/%d]],
-        comment_rest_id
-    )
+    local cmd = {
+      "api",
+      "--method",
+      "DELETE",
+      "-H",
+      "Accept: application/vnd.github.v3+json",
+      string.format([[/repos/{owner}/{repo}/pulls/comments/%d]], comment_rest_id),
+    }
     local out = gh_exec(cmd, true)
     if out == nil then
         return nil
@@ -762,7 +902,7 @@ end
 function M.list_reviews_async(pull_number, on_read)
     local args = {
         "api",
-        '-X',
+        '--method',
         'GET',
         '-F',
         'per_page=100',
@@ -800,10 +940,16 @@ function M.remove_reaction_async(id, reaction, on_read)
 end
 
 function M.create_review(pull_number, commit_id)
-    local cmd = string.format([[gh api --method POST -H "Accept: application/vnd.github.v3+json" /repos/{owner}/{repo}/pulls/%d/reviews -f commit_id=%s]],
-        pull_number,
-        commit_id
-    )
+    local cmd = {
+      "api",
+      "--method",
+      "POST",
+      "-H",
+      "Accept: application/vnd.github.v3+json",
+      string.format("/repos/{owner}/{repo}/pulls/%d/reviews", pull_number),
+      "-f",
+      string.format("commit_id=%s", commit_id),
+    }
     local out = gh_exec(cmd)
     if out == nil then
         return nil
@@ -812,10 +958,14 @@ function M.create_review(pull_number, commit_id)
 end
 
 function M.delete_review(pull_number, review_id)
-    local cmd = string.format([[gh api --method DELETE -H "Accept: application/vnd.github.v3+json" /repos/{owner}/{repo}/pulls/%d/reviews/%s]],
-        pull_number,
-        review_id
-    )
+    local cmd = {
+      "api",
+      "--method",
+      "DELETE",
+      "-H",
+      "Accept: application/vnd.github.v3+json",
+      string.format("/repos/{owner}/{repo}/pulls/%d/reviews/%s", pull_number, review_id),
+    }
     local out = gh_exec(cmd)
     if out == nil then
         return nil
@@ -824,20 +974,19 @@ function M.delete_review(pull_number, review_id)
 end
 
 function M.submit_review(pull_number, review_id, body, event)
-    local cmd = nil
+    local cmd = {
+      "api",
+      "--method",
+      "POST",
+      "-H",
+      "Accept: application/vnd.github.v3+json",
+      string.format("/repos/{owner}/{repo}/pulls/%d/reviews/%s/events", pull_number, review_id),
+      "-f",
+      string.format("event=%s", event),
+    }
     if body ~= nil then
-        cmd = string.format([[gh api --method POST -H "Accept: application/vnd.github.v3+json" /repos/{owner}/{repo}/pulls/%d/reviews/%s/events -f event=%s -f body=%s]],
-            pull_number,
-            review_id,
-            event,
-            body
-        )
-    else
-        cmd = string.format([[gh api --method POST -H "Accept: application/vnd.github.v3+json" /repos/{owner}/{repo}/pulls/%d/reviews/%s/events -f event=%s ]],
-            pull_number,
-            review_id,
-            event
-        )
+        table.insert(cmd, "-f")
+        table.insert(cmd, string.format("body=%s", body))
     end
     local out = gh_exec(cmd, true)
     if out == nil then
@@ -849,7 +998,7 @@ end
 function M.list_labels_async(on_read)
     local args = {
         'api',
-        '-X',
+        '--method',
         'GET',
         '-F',
         'per_page=100',
@@ -901,7 +1050,7 @@ end
 function M.get_check_suites_async(commit_sha, on_read)
     local args = {
         'api',
-        '-X',
+        '--method',
         'GET',
         '-F',
         'per_page=100',
@@ -913,7 +1062,7 @@ end
 function M.get_check_runs_by_suite(suite_id, on_read)
     local args = {
         'api',
-        '-X',
+        '--method',
         'GET',
         '-F',
         'per_page=100',
@@ -923,7 +1072,7 @@ function M.get_check_runs_by_suite(suite_id, on_read)
 end
 
 function M.get_git_protocol()
-  local cmd = [[gh config get git_protocol]]
+  local cmd = {"config", "get", "git_protocol"}
   local protocol, e = gh_exec(cmd, true);
   if protocol == nil then
     return nil, e
@@ -933,7 +1082,7 @@ function M.get_git_protocol()
 end
 
 function M.get_token()
-  local cmd = [[gh auth token]]
+  local cmd = {"auth", "token"}
   local token, e = gh_exec(cmd, true);
   if token == nil then
     return nil, e
@@ -945,7 +1094,7 @@ end
 function M.list_repo_contributors_async(on_read)
     local args = {
         'api',
-        '-X',
+        '--method',
         'GET',
         '-F',
         'per_page=100',
@@ -957,7 +1106,7 @@ end
 function M.list_repo_notifications(on_read)
     local args = {
         'api',
-        '-X',
+        '--method',
         'GET',
         '-F',
         'per_page=100',
@@ -969,7 +1118,7 @@ end
 function M.list_repo_notifications_all(on_read)
     local args = {
         'api',
-        '-X',
+        '--method',
         'GET',
         '-F',
         'per_page=100',
@@ -981,12 +1130,24 @@ function M.list_repo_notifications_all(on_read)
 end
 
 function M.set_notification_read(thread_id)
-    local cmd = [[gh api -X PATCH /notifications/threads/]] .. thread_id
+    local cmd = {
+      "api",
+      "--method",
+      "PATCH",
+       string.format("/notifications/threads/%s", thread_id)
+    }
     return gh_exec(cmd, true)
 end
 
 function M.set_notification_ignored(thread_id)
-    local cmd = [[gh api -X PUT -F "ignored=true" /notifications/threads/]] .. thread_id .. "/subscription"
+    local cmd = {
+      "api",
+      "--method",
+      "PUT",
+      "-F",
+      "ignored=true",
+       string.format("/notifications/threads/%s/subscription", thread_id)
+    }
     return gh_exec(cmd, true)
 end
 
