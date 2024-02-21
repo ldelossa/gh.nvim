@@ -243,6 +243,12 @@ local function git_fetch()
         lib_notify.notify_popup_with_timeout("Failed to fetch remote branch.", 7500, "error")
         return
     end
+    local head_sha = M.pull_state.pr_raw["head"]["sha"]
+    local out_head_sha = gitcli.fetch(remote, head_sha)
+    if out_head_sha == nil then
+        lib_notify.notify_popup_with_timeout("Failed to fetch remote base commit.", 7500, "error")
+        return
+    end
     return true
 end
 
