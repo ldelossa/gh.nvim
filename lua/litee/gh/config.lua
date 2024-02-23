@@ -26,6 +26,10 @@ M.config = {
         thread_separator = "GHThreadSep",
         thread_separator_alt = "GHThreadSepAlt"
     },
+    -- extra arguments: if a list is provided it is added to all the commands
+    -- if a table with string indices is provided the actual subcommand will be looked up
+    -- if found in any key (so keys could also be "api,config") this one is used.
+    -- if not found and "*" is present this one is used.
     ghcli_extra_args = {},
     -- log all git and gh cli actions to a buffer.
     -- the buffer can be opened with "GHOpenDebugBuffer".
