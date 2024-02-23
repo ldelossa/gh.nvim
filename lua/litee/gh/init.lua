@@ -237,6 +237,7 @@ function M.setup(user_config)
         register_git_buffer_completion()
     end
 
+    completion.refresh_cache()
     register_pr_component()
     register_pr_files_component()
     register_pr_review_component()

@@ -13,9 +13,8 @@ local function fill_contributor_cache()
             return
         end
         M.contributor_cache = data
-    end)    
+    end)
 end
-fill_contributor_cache()
 
 local function fill_issue_cache()
     ghcli.list_all_repo_issues_async(function(err, data)
@@ -24,9 +23,8 @@ local function fill_issue_cache()
             return
         end
         M.issue_cache = data
-    end)    
+    end)
 end
-fill_issue_cache()
 
 -- global lua function which can be used as omnifunc like:
 -- vim.api.nvim_buf_set_option(buf, 'ofu', 'v:lua.GH_completion')
@@ -71,6 +69,11 @@ function GH_completion(start, base)
         end
         return matches
     end
+end
+
+function M.refresh_cache()
+    fill_contributor_cache()
+    fill_issue_cache()
 end
 
 return M

@@ -24,34 +24,86 @@ local function debug_fmt_args(args)
     return "gh " .. cmd
 end
 
+local function copy_table(t)
+  local u = { }
+  for k, v in pairs(t) do u[k] = v end
+  return setmetatable(u, getmetatable(t))
+end
+
+
+local function get_extra_args(command)
+  if c.config.ghcli_extra_args == nil then
+    return {}
+  end
+  for key, value in pairs(c.config.ghcli_extra_args) do
+    -- in case we have an array we always use all the extra params
+    if (type(key) == 'number') then
+      return c.config.ghcli_extra_args
+    end
+
+    if command ~= nil then
+      if string.match(key, command) then
+        return value
+      end
+    end
+  end
+  -- nothing found, so we use the global flags, if provided
+  local universal_flags = c.config.ghcli_extra_args['*']
+  if universal_flags ~= nil then
+    return universal_flags
+  end
+  -- make sure we return a table in any case.
+  return {}
+end
+
+local function get_global_extra_args(command)
+  if c.config.ghcli_extra_args == nil or #c.config.ghcli_extra_args == 0 then
+    return {}
+  end
+  for key, value in ipairs(c.config.ghcli_extra_args) do
+    -- in case we have an array we will not have global params
+    if (type(key) == 'number') then
+      return {}
+    end
+
+    if string.match(key, command) then
+      return value
+    end
+  end
+  -- make sure we return a table in any case.
+  return {}
+end
+
 -- gh_exec executs the (assumed) gh command which returns json.
 --
 -- if nil is returned the second returned argument is the error output.
 --
 -- if successful the json is decoded into a lua dictionary and returned.
-local function gh_exec(args, no_json_decode, no_additional_arguments)
-    if not no_additional_arguments then
-      if c.config.ghcli_extra_args ~= nil and #c.config.ghcli_extra_args > 0 then
-        for i, v in pairs(c.config.ghcli_extra_args) do
-          table.insert(args, i, v)
-        end
-      end
+local function gh_exec(args, no_json_decode)
+    local extra_args = get_extra_args(args[1])
+    for i = #extra_args, 1, -1 do
+      table.insert(args, 2, extra_args[i])
     end
-    table.insert(args, "gh", 1)
+
+    local global_extra_args = get_global_extra_args()
+    for i = #global_extra_args, 1, -1 do
+      table.insert(args, 1, global_extra_args[i])
+    end
+    table.insert(args, 1, "gh")
 
     local output = vim.fn.system(args)
 
     if vim.v.shell_error ~= 0 then
-        debug.log("[gh] cmd: " .. vim.inspect(cmd) .. " out:\n" .. vim.inspect(output), "error")
+        debug.log("[gh] cmd: " .. vim.inspect(args) .. " out:\n" .. vim.inspect(output), "error")
         return nil
     end
-    debug.log("[gh] cmd: " .. vim.inspect(cmd) .. " out:\n" .. vim.inspect(output), "info")
+    debug.log("[gh] cmd: " .. vim.inspect(args) .. " out:\n" .. vim.inspect(output), "info")
     if no_json_decode then
         return output
     end
     local tbl = json_decode_safe(output)
     if tbl["message"] ~= nil then
-        debug.log("[gh] cmd: " .. vim.inspect(cmd) .. " out:\n" .. vim.inspect(tbl), "error")
+        debug.log("[gh] cmd: " .. vim.inspect(args) .. " out:\n" .. vim.inspect(tbl), "error")
         return nil
     end
     return tbl, ""
@@ -83,11 +135,19 @@ local function async_request(args, on_read, paginate, page, paged_data)
             table.insert(args, "page=" .. page)
         end
     end
-    if c.config.ghcli_extra_args ~= nil and #c.config.ghcli_extra_args > 0 then
-      for i, v in pairs(c.config.ghcli_extra_args) do
-        table.insert(args, i, v)
-      end
+
+    local original_args = copy_table(args)
+
+    local extra_args = get_extra_args(args[1])
+    for i = #extra_args, 1, -1 do
+      table.insert(args, 2, extra_args[i])
     end
+
+    local global_extra_args = get_global_extra_args('gh')
+    for i = #global_extra_args, 1, -1 do
+      table.insert(args, 1, global_extra_args[i])
+    end
+
     handle = vim.loop.spawn('gh', {
         args = args,
         stdio = {nil, stdout, stderr},
@@ -127,7 +187,7 @@ local function async_request(args, on_read, paginate, page, paged_data)
                 if #data > 0 then
                     -- paginate
                     debug.log("[gh] cmd: " .. debug_fmt_args(args) .. " out:\n" .. vim.inspect(data), "info")
-                    async_request(args, on_read, paginate, page+1, paged_data)
+                    async_request(original_args, on_read, paginate, page+1, paged_data)
                     return
                 end
             end
