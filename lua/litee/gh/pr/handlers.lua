@@ -46,7 +46,8 @@ function M.ui_handler(refresh, on_load_ui)
     if not refresh then
         local remote_url = s.get_pr_remote_url()
         local token = ghcli.get_token()
-        if token~=nil then
+        local protocol = ghcli.get_git_protocol()
+        if token~=nil and protocol == "https" then
           remote_url = remote_url:gsub("https://", "")
           remote_url = "https://" .. token .. "@" .. remote_url
         end
