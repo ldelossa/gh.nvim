@@ -24,13 +24,6 @@ local function debug_fmt_args(args)
     return "gh " .. cmd
 end
 
-local function copy_table(t)
-  local u = { }
-  for k, v in pairs(t) do u[k] = v end
-  return setmetatable(u, getmetatable(t))
-end
-
-
 local function get_extra_args(command)
   if c.config.ghcli_extra_args == nil then
     return {}
@@ -136,7 +129,7 @@ local function async_request(args, on_read, paginate, page, paged_data)
         end
     end
 
-    local original_args = copy_table(args)
+    local original_args = vim.deepcopy(args)
 
     local extra_args = get_extra_args(args[1])
     for i = #extra_args, 1, -1 do
