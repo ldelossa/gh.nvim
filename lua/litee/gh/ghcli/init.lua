@@ -37,21 +37,21 @@ local function gh_exec(args, no_json_decode, no_additional_arguments)
         end
       end
     end
-    table.insert(args, "gh", 1)
+    table.insert(args, 1, "gh")
 
     local output = vim.fn.system(args)
 
     if vim.v.shell_error ~= 0 then
-        debug.log("[gh] cmd: " .. vim.inspect(cmd) .. " out:\n" .. vim.inspect(output), "error")
+        debug.log("[gh] cmd: " .. vim.inspect(args) .. " out:\n" .. vim.inspect(output), "error")
         return nil
     end
-    debug.log("[gh] cmd: " .. vim.inspect(cmd) .. " out:\n" .. vim.inspect(output), "info")
+    debug.log("[gh] cmd: " .. vim.inspect(args) .. " out:\n" .. vim.inspect(output), "info")
     if no_json_decode then
         return output
     end
     local tbl = json_decode_safe(output)
     if tbl["message"] ~= nil then
-        debug.log("[gh] cmd: " .. vim.inspect(cmd) .. " out:\n" .. vim.inspect(tbl), "error")
+        debug.log("[gh] cmd: " .. vim.inspect(args) .. " out:\n" .. vim.inspect(tbl), "error")
         return nil
     end
     return tbl, ""
@@ -182,7 +182,14 @@ function M.get_user_async(on_read)
 end
 
 function M.get_pull_files_async(pull_number, on_read)
-    local args = {"api", "--method", "GET", "-F", "per_page=100", string.format("/repos/{owner}/{repo}/pulls/%d/files", pull_number)}
+    local args = {
+      "api",
+      "--method",
+      "GET",
+      "-F",
+      "per_page=100",
+      string.format("/repos/{owner}/{repo}/pulls/%d/files", pull_number)
+    }
     async_request(args, on_read, true)
 end
 
@@ -1073,7 +1080,7 @@ end
 
 function M.get_git_protocol()
   local cmd = {"config", "get", "git_protocol"}
-  local protocol, e = gh_exec(cmd, true);
+  local protocol, e = gh_exec(cmd, true, true);
   if protocol == nil then
     return nil, e
   end
@@ -1083,7 +1090,7 @@ end
 
 function M.get_token()
   local cmd = {"auth", "token"}
-  local token, e = gh_exec(cmd, true);
+  local token, e = gh_exec(cmd, true, true);
   if token == nil then
     return nil, e
   end
