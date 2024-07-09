@@ -830,7 +830,7 @@ function M.create_comment_review(pull_id, review_id, body, path, line, side)
       "-F",
       string.format("line=%d", line),
       "-F",
-      string.format("side=%s", side)
+      string.format("side=%s", side),
       "-f",
       string.format("query=%s", graphql.create_comment_review)
     }
@@ -860,9 +860,9 @@ function M.create_comment_review_multiline(pull_id, review_id, body, path, start
       "-F",
       string.format("line=%d", line),
       "-F",
-      string.format("start_side=%s", side)
+      string.format("start_side=%s", side),
       "-F",
-      string.format("side=%s", side)
+      string.format("side=%s", side),
       "-f",
       string.format("query=%s", graphql.create_comment_review_multiline)
     }
