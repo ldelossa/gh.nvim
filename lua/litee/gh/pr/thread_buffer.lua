@@ -92,7 +92,6 @@ local function extract_text()
     end
     local lines = vim.api.nvim_buf_get_lines(state.buf, state.text_area_off, -1, false)
     local body = vim.fn.join(lines, "\n")
-    body = vim.fn.shellescape(body)
     return body, lines
 end
 
