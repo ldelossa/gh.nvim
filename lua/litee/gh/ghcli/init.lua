@@ -907,7 +907,7 @@ function M.reply_comment_review(pull_id, review_id, commit_sha, body, reply_id)
       "-F",
       string.format("body=%s", body),
       "-F",
-      string.format("reply=%d", reply_id),
+      string.format("reply=%s", reply_id),
       "-f",
       string.format("query=%s", graphql.reply_comment_review)
     }
