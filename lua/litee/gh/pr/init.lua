@@ -804,6 +804,76 @@ function M.test_thread()
     vim.api.nvim_win_set_buf(0, buf)
 end
 
+-- picks the editor window next to the PR panel: the invoking win if still
+-- valid, else any non-panel win in the PR tab, else a new split.
+local function review_summary_win(ctx)
+    local panel_win = ctx.state["pr"].win
+    local inv = ctx.state["pr"].invoking_win
+    if inv ~= nil and inv ~= panel_win and vim.api.nvim_win_is_valid(inv) then
+        return inv
+    end
+    local tab = vim.api.nvim_win_get_tabpage(panel_win or 0)
+    for _, win in ipairs(vim.api.nvim_tabpage_list_wins(tab)) do
+        local cfg = vim.api.nvim_win_get_config(win)
+        local ft = vim.bo[vim.api.nvim_win_get_buf(win)].filetype
+        if win ~= panel_win and cfg.relative == "" and not ft:match("^pr") then
+            return win
+        end
+    end
+    vim.cmd("leftabove vsplit")
+    return vim.api.nvim_get_current_win()
+end
+
+-- renders a review's top-level summary into a markdown buffer in the editor win.
+local function open_review_summary(ctx, review)
+    local buf_name = "gh-review://" .. s.pull_state.number .. "/" .. review["id"]
+    local buf = vim.fn.bufnr(buf_name)
+    if buf == -1 then
+        buf = vim.api.nvim_create_buf(false, true)
+        vim.api.nvim_buf_set_name(buf, buf_name)
+        vim.bo[buf].buftype = "nofile"
+        vim.bo[buf].bufhidden = "hide"
+        vim.bo[buf].swapfile = false
+        vim.bo[buf].filetype = "markdown"
+    end
+
+    local state_labels = {
+        APPROVED = "approved",
+        CHANGES_REQUESTED = "changes requested",
+        COMMENTED = "commented",
+        PENDING = "pending",
+        DISMISSED = "dismissed",
+    }
+    local lines = {
+        string.format("# %s (%s)", review["user"]["login"], state_labels[review["state"]] or review["state"]),
+        "",
+    }
+    if type(review["submitted_at"]) == "string" then
+        table.insert(lines, "Submitted: " .. review["submitted_at"])
+    end
+    if type(review["html_url"]) == "string" then
+        table.insert(lines, "URL: " .. review["html_url"])
+    end
+    table.insert(lines, "")
+    local body = review["body"]
+    if type(body) ~= "string" or body == "" then
+        body = "_(no review summary)_"
+    end
+    for _, l in ipairs(vim.split(body:gsub("\r", ""), "\n", { plain = true })) do
+        table.insert(lines, l)
+    end
+
+    vim.bo[buf].modifiable = true
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.bo[buf].modifiable = false
+
+    local win = review_summary_win(ctx)
+    vim.api.nvim_win_set_buf(win, buf)
+    vim.wo[win].wrap = true
+    vim.wo[win].linebreak = true
+    vim.api.nvim_set_current_win(win)
+end
+
 local function open_pr_node(ctx, node)
     if node.pr ~= nil then
         issues.open_issue_by_number(node.pr["number"])
@@ -834,7 +904,7 @@ local function open_pr_node(ctx, node)
         diff_view.open_diffsplit(commit, file, thread.thread, true)
     end
     if node.review ~= nil then
-        handlers.review_handler(node.review["node_id"])
+        open_review_summary(ctx, node.review)
         return
     end
     if node.file ~= nil then

@@ -214,6 +214,26 @@ function register_default_highlights()
     end
 end
 
+-- route only gh.nvim's vim.ui.select calls to telescope; other callers keep theirs.
+local function register_telescope_select()
+    local ok, ext = pcall(require, "telescope._extensions.ui-select")
+    if not ok then
+        lib_notify.notify_popup_with_timeout("use_telescope requires telescope.nvim and telescope-ui-select.nvim.", 7500, "error")
+        return
+    end
+    local fallback_select = vim.ui.select
+    ext.setup({ require("telescope.themes").get_dropdown({
+        layout_config = { width = 0.9, height = 0.9 },
+    }) }, require("telescope.config").values)
+    local telescope_select = vim.ui.select
+    vim.ui.select = function(items, opts, on_choice)
+        if _G.debug.getinfo(2, "S").source:find("/lua/litee/gh/", 1, true) then
+            return telescope_select(items, opts, on_choice)
+        end
+        return fallback_select(items, opts, on_choice)
+    end
+end
+
 function M.setup(user_config)
     if not pcall(require, "litee.lib") then
         lib_notify.notify_popup_with_timeout("Cannot start litee-gh without the litee.lib library.", 1750, "error")
@@ -231,6 +251,10 @@ function M.setup(user_config)
     end
 
     c.set_icon_set()
+
+    if c.config.use_telescope then
+        register_telescope_select()
+    end
 
     -- register gh.nvim completion for .git/ buffers
     if c.config.git_buffer_completion then

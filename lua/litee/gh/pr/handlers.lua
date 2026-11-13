@@ -55,11 +55,16 @@ function M.ui_handler(refresh, on_load_ui)
         local remote_name = "litee-gh_" .. s.pull_state.pr_raw["head"]["repo"]["full_name"]
         local head_branch = s.pull_state.pr_raw["head"]["ref"]
 
-        -- if the current repo is dirty we can't continue, since we will eventually
-        -- checkout commits of the pull request.
+        -- a dirty repository is normally a hard stop here, since we check out
+        -- commits of the pull request below. config.require_clean_repo = false
+        -- downgrades it to a warning so work in progress can be reviewed; the
+        -- diff's right side then shows the working tree instead of the PR head.
         if gitcli.repo_dirty() then
-            lib_notify.notify_popup_with_timeout("Cannot open pull request because repository has changes. Stash changes and try again.", 7500, "error")
-            return
+            if config.require_clean_repo then
+                lib_notify.notify_popup_with_timeout("Cannot open pull request because repository has changes. Stash changes and try again.", 7500, "error")
+                return
+            end
+            lib_notify.notify_popup_with_timeout("Opening pull request with a dirty repository: the diff shows your working tree, not the pull request head.", 7500, "warning")
         end
         -- if we don't have the remote HEAD then add it and fetch the branch by ref
         -- name.

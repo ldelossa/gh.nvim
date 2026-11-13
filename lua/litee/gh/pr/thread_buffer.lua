@@ -258,6 +258,11 @@ function M.create_thread(details)
     return state.buf
 end
 
+-- cancel_create drops a pending "creating_comment" state, e.g. when its float is closed.
+function M.cancel_create()
+    state.creating_comment = nil
+end
+
 -- restore_comment_create will restore the "comment_creating" state and any text
 -- which may have been in the buffer.
 --
@@ -764,7 +769,11 @@ local function create(body, details)
            end
        end
     end
-    vim.api.nvim_win_set_buf(0, details.original_buf)
+    if vim.api.nvim_win_get_config(0).relative ~= "" then
+        vim.api.nvim_win_close(0, true)
+    else
+        vim.api.nvim_win_set_buf(0, details.original_buf)
+    end
 end
 
 -- reactions handles submitting an addition or removal of a user reaction for
@@ -817,6 +826,58 @@ function M.reaction()
     )
 end
 
+local function is_local_target(target)
+    return not target:match("^%a[%w+.-]*://") and not target:match("^data:")
+end
+
+-- upload_local_images uploads files referenced by markdown images such as
+-- ![shot](/tmp/shot.png) and swaps in their GitHub URLs.
+--
+-- returns the new body, or nil and an error message.
+local function upload_local_images(body)
+    local pattern = "(!%[[^%]]*%]%()([^%)%s]+)(%))"
+    local files = {}
+    for _, target in body:gmatch(pattern) do
+        local file = vim.fs.normalize(target)
+        if is_local_target(target) and vim.fn.filereadable(file) == 1 then
+            files[target] = file
+        end
+    end
+    if next(files) == nil then
+        return body
+    end
+
+    local pr = s.pull_state.pr_raw
+    local repo = pr ~= nil and pr["base"] ~= nil and pr["base"]["repo"] or nil
+    if repo == nil then
+        return nil, "pull request data not loaded"
+    end
+    local html_url = repo["html_url"]
+    local host = html_url:match("^https?://([^/]+)")
+
+    vim.api.nvim_echo({{"gh.nvim: uploading images...", "MoreMsg"}}, false, {})
+    vim.cmd("redraw")
+
+    local urls = {}
+    for target, file in pairs(files) do
+        local ext = (file:match("%.(%w+)$") or "png"):lower()
+        local dest = string.format("gh-nvim/pr-%s/%s-%04d.%s",
+            s.pull_state.number, os.date("%Y%m%d-%H%M%S"), vim.uv.hrtime() % 10000, ext)
+        local url, err = ghcli.upload_file(host, repo["full_name"], html_url,
+            config.config.image_upload_branch, file, dest)
+        if url == nil then
+            return nil, string.format("Failed to upload %s: %s", file, err)
+        end
+        urls[target] = url
+    end
+
+    return (body:gsub(pattern, function(open, target, close)
+        if urls[target] ~= nil then
+            return open .. urls[target] .. close
+        end
+    end))
+end
+
 -- submit() determines the current state of the thread_buffer and performs the
 -- necessary GH API calls.
 function M.submit()
@@ -828,6 +889,19 @@ function M.submit()
     local body = extract_text()
     if vim.fn.strlen(body) == 0 then
         return
+    end
+
+    local uploaded, upload_err = upload_local_images(body)
+    if uploaded == nil then
+        lib_notify.notify_popup_with_timeout(upload_err, 7500, "error")
+        return
+    end
+    if uploaded ~= body then
+        -- keep the URLs in the draft so a failed submit doesn't re-upload.
+        body = uploaded
+        M.set_modifiable(true)
+        vim.api.nvim_buf_set_lines(state.buf, state.text_area_off, -1, false, vim.split(body, "\n"))
+        M.set_modifiable(false)
     end
 
     if state.editing_comment ~= nil then

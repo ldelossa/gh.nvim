@@ -14,6 +14,9 @@ local function marshal_review_node(node)
     elseif node.review["state"] == 'PENDING' then
         name  = name .. " (pending)"
         icon = config.icon_set["Pencil"]
+    elseif node.review["state"] == 'COMMENTED' then
+        name  = name .. " (commented)"
+        icon = config.icon_set["Comment"]
     else
         name  = name .. " (changes required)"
         icon = config.icon_set["RequestChanges"]

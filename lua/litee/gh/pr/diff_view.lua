@@ -379,6 +379,145 @@ local function map_chunks_to_lines(file)
     end
 end
 
+-- telescope's border chars ({top, right, bottom, left, tl, tr, br, bl}) in nvim_open_win order.
+local function telescope_border()
+    local chars = { "─", "│", "─", "│", "╭", "╮", "╯", "╰" }
+    local ok, tconf = pcall(require, "telescope.config")
+    if ok and type(tconf.values.borderchars) == "table" and #tconf.values.borderchars == 8 then
+        chars = tconf.values.borderchars
+    end
+    return { chars[5], chars[1], chars[6], chars[2], chars[7], chars[3], chars[8], chars[4] }
+end
+
+-- left edge of the rightmost split column (the "right pane"), or nil if the tab has a single column.
+-- Full-width windows (col 0, e.g. litee's bottom panel) are ignored.
+local function right_pane_col(tab)
+    local right_col
+    for _, w in ipairs(vim.api.nvim_tabpage_list_wins(tab or 0)) do
+        if vim.api.nvim_win_get_config(w).relative == "" then
+            local col = vim.api.nvim_win_get_position(w)[2]
+            if col > 0 and col + vim.api.nvim_win_get_width(w) >= vim.o.columns
+                and (right_col == nil or col > right_col) then
+                right_col = col
+            end
+        end
+    end
+    return right_col
+end
+
+-- the gh diff's left pane when it is a normal window in `tab` (nil otherwise).
+local function left_pane_win(tab)
+    local w = state and state.lwin
+    if w == nil or not vim.api.nvim_win_is_valid(w) then return nil end
+    if vim.api.nvim_win_get_tabpage(w) ~= (tab or vim.api.nvim_get_current_tabpage()) then return nil end
+    if vim.api.nvim_win_get_config(w).relative ~= "" then return nil end
+    return w
+end
+
+-- float laid exactly over the diff's left pane (border included), so the right pane stays visible;
+-- without a usable left pane: left-anchored, 90% height, stopping short of the rightmost column.
+local function thread_float_config(title, tab)
+    local cfg = {
+        relative = "editor",
+        border = telescope_border(),
+        title = title,
+        title_pos = "center",
+        zindex = 99,
+    }
+    local lwin = left_pane_win(tab)
+    if lwin then
+        local w, h = vim.api.nvim_win_get_width(lwin), vim.api.nvim_win_get_height(lwin)
+        if w >= 22 and h >= 7 then
+            local pos = vim.api.nvim_win_get_position(lwin)
+            cfg.row, cfg.col, cfg.width, cfg.height = pos[1], pos[2], w - 2, h - 2
+            return cfg
+        end
+    end
+    local lines = vim.o.lines - vim.o.cmdheight
+    local min_width = math.min(vim.o.columns, 40)
+    local right_col = right_pane_col(tab)
+    -- -1 for the split separator; fall back to 60% when there is no right pane or it leaves too little room
+    local width = right_col and right_col - 1 or 0
+    if width < min_width then width = math.max(min_width, math.floor(vim.o.columns * 0.6)) end
+    local height = math.max(5, math.floor(lines * 0.9))
+    cfg.row = math.floor((lines - height) / 2)
+    cfg.col = 0
+    cfg.width = width - 2
+    cfg.height = height - 2
+    return cfg
+end
+
+-- lay the float out in its box, then shrink it to the wrapped text height (never taller than the box).
+local function fit_thread_float(win)
+    if win == nil or not vim.api.nvim_win_is_valid(win) then return end
+    if vim.api.nvim_win_get_config(win).relative == "" then return end
+    local cfg = thread_float_config(vim.w[win].gh_float_title, vim.api.nvim_win_get_tabpage(win))
+    local max_height = cfg.height
+    -- width first: the text height depends on where lines wrap
+    vim.api.nvim_win_set_config(win, cfg)
+    local ok, th = pcall(vim.api.nvim_win_text_height, win, {})
+    if ok and th.all < max_height then
+        cfg.height = math.max(3, th.all)
+        vim.api.nvim_win_set_config(win, cfg)
+        -- everything fits: keep the view at the top instead of a scrolled-down remnant
+        vim.api.nvim_win_call(win, function() vim.fn.winrestview({ topline = 1 }) end)
+    end
+end
+
+local function open_thread_float(buf, title)
+    local win = vim.api.nvim_open_win(buf, true, thread_float_config(title))
+    vim.w[win].gh_float_title = title
+    -- floats copy window options from the diff pane they open over; drop diff/scroll binding
+    -- (it would pull the thread buffer into the diff) and wrap long lines at word boundaries.
+    for opt, val in pairs({ diff = false, scrollbind = false, cursorbind = false, foldenable = false,
+                            wrap = true, linebreak = true, breakindent = true }) do
+        vim.wo[win][opt] = val
+    end
+    vim.wo[win].winhighlight = "Normal:TelescopeNormal,NormalFloat:TelescopeNormal,FloatBorder:TelescopeBorder,FloatTitle:TelescopeTitle"
+    fit_thread_float(win)
+    -- follow the text height as the thread re-renders or a reply is typed
+    local pending = false
+    vim.api.nvim_buf_attach(buf, false, {
+        on_lines = function()
+            if not vim.api.nvim_win_is_valid(win) then return true end
+            if pending then return end
+            pending = true
+            vim.schedule(function()
+                pending = false
+                if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == buf then
+                    fit_thread_float(win)
+                end
+            end)
+        end,
+    })
+    -- WinResized also covers splits opening/closing/resizing, so the float tracks the left pane.
+    vim.api.nvim_create_autocmd({ "VimResized", "WinResized" }, {
+        callback = function()
+            if not vim.api.nvim_win_is_valid(win) then return true end
+            fit_thread_float(win)
+        end,
+    })
+    vim.api.nvim_create_autocmd("WinClosed", {
+        pattern = tostring(win),
+        once = true,
+        callback = function()
+            if state ~= nil and state.displayed_thread ~= nil and state.displayed_thread.win == win then
+                state.displayed_thread = nil
+            end
+        end,
+    })
+    return win
+end
+
+local function close_displayed_thread()
+    local shown = state.displayed_thread
+    state.displayed_thread = nil
+    if shown ~= nil and shown.win ~= nil and vim.api.nvim_win_is_valid(shown.win)
+        and vim.api.nvim_win_get_config(shown.win).relative ~= "" then
+        vim.api.nvim_win_close(shown.win, true)
+    end
+end
+
 local function handle_missing_file(thread)
     local line = thread["originalLine"]
     if line == vim.NIL then
@@ -387,13 +526,25 @@ local function handle_missing_file(thread)
     local missing_buf = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_buf_set_lines(missing_buf, 0, -1, false, {"This file no longer exists in the pull request."})
     vim.api.nvim_win_set_buf(0, missing_buf)
-    vim.cmd("vsplit")
+    if not config.config.use_telescope then
+        vim.cmd("vsplit")
+    end
     local buf = thread_buffer.render_thread(thread["id"], line, {1, 1})
-    vim.api.nvim_win_set_buf(0, buf)
+    if buf == nil then
+        return
+    end
+    if config.config.use_telescope then
+        open_thread_float(buf, " Thread ")
+    else
+        vim.api.nvim_win_set_buf(0, buf)
+    end
 end
 
 -- the commmit object passed in is one which is returned by ghcli.get_commit().
 function M.open_diffsplit(commit, file, thread, compare_base)
+    if state ~= nil then
+        close_displayed_thread()
+    end
     reset_state()
     -- setup the current tabpage for a diff,
     -- when we return from this we'll be inside a right hand diff window
@@ -418,10 +569,14 @@ function M.open_diffsplit(commit, file, thread, compare_base)
     local diff_filename = file["filename"]
     local diff_buffer_name = nil
 
+    -- PR paths are repo-root relative; nvim's cwd may be a subdirectory.
+    local root = gitcli.toplevel()
+    local worktree_file = vim.fn.fnameescape(root and (root .. "/" .. file["filename"]) or file["filename"])
+
     vim.fn.delete("/tmp/gh-nvim-empty")
     -- if the file is added, open our local file and diff an empty buffer
     if file["status"] == "added" then
-        vim.cmd("edit " .. file["filename"])
+        vim.cmd("edit " .. worktree_file)
         diff_buffer_name = "/tmp/gh-nvim-empty"
     -- if the file is removed, open an empty buffer first and diff the old
     -- old version
@@ -433,19 +588,32 @@ function M.open_diffsplit(commit, file, thread, compare_base)
         if file["status"] == "renamed" then
             diff_filename = file["previous_filename"]
         end
-        vim.cmd("edit " .. file["filename"])
+        vim.cmd("edit " .. worktree_file)
     end
 
     -- write the old version of the file to /tmp/ and diff it
     local parent_commit = nil
     if compare_base then
-        parent_commit = s.pull_state.pr_raw.base.sha
+        -- GitHub computes a pull request's file patches against the merge base of
+        -- the head and the base branch, so diff that same commit. pr_raw.base.sha
+        -- is the *tip* of the base branch, which moves on every push to it and is
+        -- therefore usually absent from our object store -- which used to render an
+        -- empty left pane (and misalign the hunks mapped from file["patch"]).
+        local head_sha = s.pull_state.pr_raw["head"]["sha"]
+        parent_commit = gitcli.merge_base(head_sha, s.pull_state.pr_raw["base"]["sha"])
+            or gitcli.merge_base(head_sha, s.pull_state.pr_raw["base"]["ref"])
+            or s.pull_state.pr_raw["base"]["sha"]
     else
         parent_commit = commit["parents"][1]["sha"]
     end
 
     diff_buffer_name = diff_buffer_name or string.format("/tmp/%s", lib_util_path.basename(diff_filename))
-    gitcli.git_show_and_write(parent_commit, diff_filename, diff_buffer_name)
+    local base_written = gitcli.git_show_and_write(parent_commit, diff_filename, diff_buffer_name)
+    if base_written == nil and file["status"] ~= "added" then
+        lib_notify.notify_popup_with_timeout(string.format(
+            "No copy of %s at %s in this repository, left pane is empty. Run `git fetch` then reopen the pull request.",
+            diff_filename, tostring(parent_commit):sub(1, 8)), 7500, "error")
+    end
     vim.cmd("vert diffsplit " .. diff_buffer_name)
     vim.cmd("q")
     vim.cmd("vert diffsplit " .. diff_buffer_name)
@@ -585,9 +753,31 @@ function M.next_thread()
     thread_buffer.render_thread(thread.thread["id"], state.thread_id_to_line[thread.thread["id"]], {cur_thread_idx, #threads}, nil, side)
     state.displayed_thread["index"] = cur_thread_idx
     state.displayed_thread["thread_id"] = thread.thread["id"]
+    state.displayed_thread["n_of"] = {cur_thread_idx, #threads}
 end
 
-function M.toggle_threads(thread_id)
+-- restores the diff buffer in the pane that is showing a thread.
+local function restore_thread_pane()
+    local win = state.rwin
+    local buf = state.rbuf
+    if state.displayed_thread["side"] == "RIGHT" then
+        win = state.lwin
+        buf = state.lbuf
+    end
+    if
+        not vim.api.nvim_win_is_valid(win) or
+        not vim.api.nvim_buf_is_valid(buf)
+    then
+        -- uh oh, our diff view is messed up. lets render the entire thing again
+        M.open_diffsplit(state.commit, state.file)
+        return false
+    end
+    vim.api.nvim_win_set_buf(win, buf)
+    return true
+end
+
+-- original behavior: the thread replaces the diff buffer in the other pane.
+local function toggle_threads_pane(thread_id)
     local cur_win = vim.api.nvim_get_current_win()
     local side = nil
     if cur_win == state.lwin then side = "LEFT" end
@@ -599,84 +789,38 @@ function M.toggle_threads(thread_id)
     local cursor = vim.api.nvim_win_get_cursor(cur_win)
     local threads = state.threads_by_line[side][cursor[1]]
 
-    -- we are being asked to toggle on a line with no threads. if a thread is
-    -- displayed restore the diff view.
+    -- on a line with no threads: restore the diff view if a thread is shown.
     if threads == nil then
-        -- toggle off the thread_buffer if its currently displayed
-        if
-            state.displayed_thread ~= nil
-        then
+        if state.displayed_thread ~= nil then
             if state.displayed_thread.popup == true then
                 vim.api.nvim_win_close(state.displayed_thread.win, true)
             end
-            local win = nil
-            local buf = nil
-            if state.displayed_thread["side"] == "RIGHT" then
-                win = state.lwin
-                buf = state.lbuf
-            else
-                win = state.rwin
-                buf = state.rbuf
-            end
-            if
-                not vim.api.nvim_win_is_valid(win) or
-                not vim.api.nvim_buf_is_valid(buf)
-            then
-                -- uh oh, our diff view is messed up. lets render the entire thing again
-                M.open_diffsplit(state.commit, state.file)
+            if not restore_thread_pane() then
                 return
             end
-            vim.api.nvim_win_set_buf(win, buf)
         end
         state.displayed_thread = nil
         return
     end
 
-    -- we are being asked to toggle on a line with threads.
-    -- if the thread on the line is one currently displayed, restore the diff view.
-    -- else, open it for display.
-    if state.displayed_thread ~= nil then
-        if
-            state.displayed_thread.side == side and
-            state.displayed_thread.linenr == cursor[1]
-        then
-            if state.displayed_thread.popup == true then
-                vim.api.nvim_win_close(state.displayed_thread.win, true)
+    -- the thread on this line is already displayed: restore the diff view,
+    -- unless a different thread_id was requested.
+    if
+        state.displayed_thread ~= nil and
+        state.displayed_thread.side == side and
+        state.displayed_thread.linenr == cursor[1]
+    then
+        if state.displayed_thread.popup == true then
+            vim.api.nvim_win_close(state.displayed_thread.win, true)
+        end
+        if thread_id == nil or state.displayed_thread.thread_id == thread_id then
+            if restore_thread_pane() then
+                state.displayed_thread = nil
             end
-            -- if we are being asked to toggle on a line with threads, but the
-            -- requested thread_id to this function is different the whats displayed
-            -- render it.
-            if thread_id ~= nil then
-                if state.displayed_thread.thread_id ~= thread_id then
-                    goto display
-                end
-            end
-
-            local win = nil
-            local buf = nil
-            if state.displayed_thread["side"] == "RIGHT" then
-                win = state.lwin
-                buf = state.lbuf
-            else
-                win = state.rwin
-                buf = state.rbuf
-            end
-            if
-                not vim.api.nvim_win_is_valid(win) or
-                not vim.api.nvim_buf_is_valid(buf)
-            then
-                -- uh oh, our diff view is messed up. lets render the entire thing again
-                M.open_diffsplit(state.commit, state.file)
-                return
-            end
-            vim.api.nvim_win_set_buf(win, buf)
-            state.displayed_thread = nil
             return
         end
-        -- its a different thread, display it by fall thru
     end
 
-    ::display::
     -- if thread_id is provided, ensure we render this thread.
     local n = 1
     if thread_id ~= nil then
@@ -693,30 +837,94 @@ function M.toggle_threads(thread_id)
         return
     end
 
-    local win = nil
+    local win = state.rwin
     if side == "RIGHT" then
         win = state.lwin
-    else
-        win = state.rwin
     end
-
     if not vim.api.nvim_win_is_valid(win) then
         -- uh oh, our diff view is messed up. lets render the entire thing again
         M.open_diffsplit(state.commit, state.file, thread.thread)
         return
     end
-
     vim.api.nvim_win_set_buf(win, buf)
 
-    -- set displayed_thread with details on the currently displayed threads
     state.displayed_thread = {
         side = side,
         linenr = cursor[1],
         win = win,
         buffer = buf,
-        index = 1,
+        index = n,
         thread_id = thread.thread["id"],
         popup = false,
+        n_of = {n, #threads}
+    }
+end
+
+function M.toggle_threads(thread_id)
+    if not config.config.use_telescope then
+        return toggle_threads_pane(thread_id)
+    end
+    local cur_win = vim.api.nvim_get_current_win()
+    -- toggling from inside the thread float closes it.
+    if state.displayed_thread ~= nil and state.displayed_thread.win == cur_win then
+        close_displayed_thread()
+        return
+    end
+
+    local side = nil
+    if cur_win == state.lwin then side = "LEFT" end
+    if cur_win == state.rwin then side = "RIGHT" end
+    if side == nil then
+        -- we are not in our diffsplit
+        return
+    end
+    local cursor = vim.api.nvim_win_get_cursor(cur_win)
+    local threads = state.threads_by_line[side][cursor[1]]
+
+    if threads == nil then
+        close_displayed_thread()
+        return
+    end
+
+    -- toggling the thread that is already shown closes it.
+    local shown = state.displayed_thread
+    if
+        shown ~= nil and
+        shown.side == side and
+        shown.linenr == cursor[1] and
+        (thread_id == nil or shown.thread_id == thread_id)
+    then
+        close_displayed_thread()
+        return
+    end
+    close_displayed_thread()
+
+    -- if thread_id is provided, ensure we render this thread.
+    local n = 1
+    if thread_id ~= nil then
+        for i, t in ipairs(threads) do
+            if t.thread["id"] == thread_id then
+                n = i
+            end
+        end
+    end
+    local thread = threads[n]
+
+    local buf = thread_buffer.render_thread(thread.thread["id"], state.thread_id_to_line[thread.thread["id"]], {n, #threads}, nil, side)
+    if buf == nil then
+        return
+    end
+
+    local win = open_thread_float(buf, " Thread ")
+
+    state.displayed_thread = {
+        side = side,
+        linenr = cursor[1],
+        win = win,
+        buffer = buf,
+        index = n,
+        thread_id = thread.thread["id"],
+        popup = true,
         n_of = {n, #threads}
     }
 end
@@ -770,19 +978,39 @@ function M.create_comment(args)
         -- a nil thread on refresh.
         on_create = function() state.displayed_thread = nil end
     }
+    -- the thread buffer is shared, so take any displayed thread off screen first.
+    close_displayed_thread()
+
     local buf = thread_buffer.create_thread(details)
 
-    local win = nil
-    if side == "RIGHT" then
-        vim.api.nvim_win_set_buf(state.lwin, buf)
-        win = state.lwin
-    else
-        vim.api.nvim_win_set_buf(state.rwin, buf)
-        win = state.rwin
+    if not config.config.use_telescope then
+        local win = state.rwin
+        if side == "RIGHT" then
+            win = state.lwin
+        end
+        vim.api.nvim_win_set_buf(win, buf)
+        vim.api.nvim_set_current_win(win)
+        -- display a nil thread to keep "creating comment" window alive over refreshes.
+        state.displayed_thread = {
+            side = side,
+            linenr = line,
+            win = win,
+            buffer = buf,
+            index = nil,
+            thread_id = nil,
+        }
+        return
     end
 
-    -- put user's cursor in create buffer
-    vim.api.nvim_set_current_win(win)
+    local win = open_thread_float(buf, " New comment ")
+    pcall(vim.api.nvim_win_set_cursor, win, {2, 0})
+
+    vim.api.nvim_create_autocmd("WinClosed", {
+        pattern = tostring(win),
+        once = true,
+        -- deferred: submit() still reads the create state after closing the float.
+        callback = function() vim.schedule(thread_buffer.cancel_create) end,
+    })
 
     -- display a nil thread to keep "creating comment" window alive over refreshes.
     state.displayed_thread = {
@@ -792,6 +1020,7 @@ function M.create_comment(args)
         buffer = buf,
         index = nil,
         thread_id = nil,
+        popup = true,
     }
 end
 

@@ -123,6 +123,15 @@ require('litee.gh').setup({
   -- whether to register the @username and #issue_number omnifunc completion
   -- in buffers which start with .git/
   git_buffer_completion = true,
+  -- when true, gh.nvim pickers use a telescope dropdown and review threads /
+  -- new comments open in floating windows. when false, threads open in the
+  -- diff's other pane. see "Telescope and floating threads" below.
+  use_telescope = false,
+  -- when true, opening a pull request refuses to run if the repository has
+  -- uncommitted changes. default false: review work in progress, the diff's
+  -- right side is then your working tree, changes and all. see "Dirty
+  -- worktrees" below.
+  require_clean_repo = false,
   -- defines keymaps in gh.nvim buffers.
   keymaps = {
       -- when inside a gh.nvim panel, this key will open a node if it has
@@ -161,6 +170,49 @@ fzf.lua, add the following snippet to your config:
 ```lua
 vim.cmd("FzfLua register_ui_select")
 ```
+
+#### Telescope and floating threads
+
+Set `use_telescope = true` to switch gh.nvim to a telescope-based UI:
+
+- gh.nvim's pickers (open PR, search issues, review actions, labels, reactions, ...)
+  open in a telescope dropdown. Only gh.nvim's `vim.ui.select` calls are routed to
+  telescope; other plugins keep their own `vim.ui.select`.
+- `GHToggleThreads` and `GHCreateThread` open the thread / new comment in a
+  floating window at the cursor, so both diff panes stay visible. Toggle again, or
+  close the float, to dismiss it.
+
+This requires [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
+and [telescope-ui-select.nvim](https://github.com/nvim-telescope/telescope-ui-select.nvim):
+
+```lua
+{
+    "ldelossa/gh.nvim",
+    dependencies = { "ldelossa/litee.nvim", "nvim-telescope/telescope-ui-select.nvim" },
+    config = function()
+        require("litee.gh").setup({ use_telescope = true })
+    end,
+}
+```
+
+With the default `use_telescope = false`, pickers use whatever `vim.ui.select` is
+configured and threads replace the diff buffer in the opposite pane.
+
+#### Dirty worktrees
+
+gh.nvim does not require a clean repository. When `git status --porcelain` is not
+empty you get a warning and the pull request opens anyway: the diff's right side is
+your working tree, so a work in progress shows up in the diff. Any checkout that
+would overwrite those changes is still refused by git.
+
+Set
+
+```lua
+require("litee.gh").setup({ require_clean_repo = true })
+```
+
+to make an unclean repository a hard error instead, so `GHOpenPR` refuses to run
+until the changes are stashed or committed.
 
 Additionally, you may want to set up some [which
 key](https://github.com/folke/which-key.nvim) bindings to help navigate all of the

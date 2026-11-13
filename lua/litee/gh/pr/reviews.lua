@@ -29,9 +29,10 @@ function M.build_reviews_subtree(depth, prev_tree)
 
     for _, review in pairs(s.pull_state.reviews_by_node_id) do
         if
-            -- ignore commented reviews, they show up in the "conversations"
-            -- sections.
-            review["state"] == "COMMENTED"
+            -- ignore commented reviews without a top-level summary, their
+            -- inline comments show up in the "conversations" section.
+            review["state"] == "COMMENTED" and
+            (review["body"] == nil or review["body"] == vim.NIL or review["body"] == "")
         then
             goto continue
         end

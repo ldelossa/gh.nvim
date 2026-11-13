@@ -385,9 +385,9 @@ function M.get_reviews_async(pull_number, username, cb)
             then
                 M.pull_state.review = r
             end
-            -- reviews of state commented show up in "Conversations" subtree,
-            -- we don't need them here.
-            if r["state"] ~= "COMMENTED" then
+            -- inline comments of COMMENTED reviews show up in the "Conversations"
+            -- subtree; only keep such reviews if they carry a top-level summary.
+            if r["state"] ~= "COMMENTED" or (r["body"] ~= nil and r["body"] ~= vim.NIL and r["body"] ~= "") then
                 M.pull_state.reviews_by_node_id[r["node_id"]] = r
             end
         end
