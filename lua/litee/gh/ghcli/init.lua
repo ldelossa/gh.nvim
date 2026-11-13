@@ -116,6 +116,7 @@ end
 
 local function async_request(args, on_read, paginate, page, paged_data)
     local buffer = ""
+    local errbuf = ""
     local stdout = vim.loop.new_pipe()
     local stderr = vim.loop.new_pipe()
     local handle = nil
@@ -141,72 +142,79 @@ local function async_request(args, on_read, paginate, page, paged_data)
       table.insert(args, 1, global_extra_args[i])
     end
 
-    handle = vim.loop.spawn('gh', {
+    -- Finish only once gh has exited *and* both pipes hit EOF: the exit callback
+    -- can run before the last stdout chunk is read, and closing the pipes there
+    -- dropped it, so on_read was never called and PR loading stalled silently.
+    local pending, exit_code = 3, 0
+    local function finish()
+        pending = pending - 1
+        if pending > 0 then
+            return
+        end
+        if handle ~= nil and not handle:is_closing() then handle:close() end
+        if not stdout:is_closing() then stdout:close() end
+        if not stderr:is_closing() then stderr:close() end
+
+        local data = json_decode_safe(buffer)
+        local err = check_error(data)
+        if err == "json decode error" and vim.trim(errbuf) ~= "" then
+            err = vim.trim(errbuf)
+        elseif err == false and exit_code ~= 0 then
+            err = vim.trim(errbuf) ~= "" and vim.trim(errbuf) or ("gh exited with code " .. exit_code)
+        end
+        if err ~= false then
+            debug.log("[gh] cmd: " .. debug_fmt_args(args) .. " out:\n" .. vim.inspect(err), "error")
+            vim.schedule(function() on_read(err, nil) end)
+            return
+        end
+        if paged_data == nil then
+            paged_data = data
+        else
+            for _, i in pairs(data) do
+                table.insert(paged_data, i)
+            end
+        end
+        if paginate and #data > 0 then
+            debug.log("[gh] cmd: " .. debug_fmt_args(args) .. " out:\n" .. vim.inspect(data), "info")
+            async_request(original_args, on_read, paginate, page+1, paged_data)
+            return
+        end
+        debug.log("[gh] cmd: " .. debug_fmt_args(args) .. " out:\n" .. vim.inspect(data), "info")
+        vim.schedule(function() on_read(false, paged_data) end)
+    end
+
+    local spawn_err
+    handle, spawn_err = vim.loop.spawn('gh', {
         args = args,
         stdio = {nil, stdout, stderr},
         },
-        function()
-            stdout:read_stop()
-            stderr:read_stop()
-            stdout:close()
-            stderr:close()
-            handle:close()
+        function(code)
+            exit_code = code
+            finish()
         end
     )
-    vim.loop.read_start(stdout, function(err, data)
-        if err then
-            debug.log("[gh] cmd: " .. debug_fmt_args(args) .. " out:\n" .. vim.inspect(err), "error")
-            return err, nil
-        end
-        if data then
-            buffer = buffer .. data
-        end
-        if data == nil then
-            data = json_decode_safe(buffer)
-            err = check_error(data)
-            if err ~= false then
+    if handle == nil then
+        stdout:close()
+        stderr:close()
+        local err = "failed to run gh: " .. tostring(spawn_err)
+        debug.log("[gh] cmd: " .. debug_fmt_args(args) .. " out:\n" .. err, "error")
+        vim.schedule(function() on_read(err, nil) end)
+        return
+    end
+    local function reader(pipe, append)
+        return function(err, data)
+            if err then
                 debug.log("[gh] cmd: " .. debug_fmt_args(args) .. " out:\n" .. vim.inspect(err), "error")
-                vim.schedule(function() on_read(err, nil) end)
+            elseif data then
+                append(data)
                 return
             end
-            if paged_data == nil then
-                paged_data = data
-            else
-                for _, i in pairs(data) do
-                    table.insert(paged_data, i)
-                end
-            end
-            if paginate then
-                if #data > 0 then
-                    -- paginate
-                    debug.log("[gh] cmd: " .. debug_fmt_args(args) .. " out:\n" .. vim.inspect(data), "info")
-                    async_request(original_args, on_read, paginate, page+1, paged_data)
-                    return
-                end
-            end
-            debug.log("[gh] cmd: " .. debug_fmt_args(args) .. " out:\n" .. vim.inspect(data), "info")
-            vim.schedule(function() on_read(false, paged_data) end)
+            pipe:read_stop()
+            finish()
         end
-    end)
-    vim.loop.read_start(stderr, function(err, data)
-        vim.schedule(
-            function()
-                if err then
-                    debug.log("[gh] cmd: " .. debug_fmt_args(args) .. " out:\n" .. vim.inspect(err), "error")
-                    return err, nil
-                end
-                if data ~= nil then
-                    data = json_decode_safe(buffer)
-                    err = check_error(data)
-                    if err ~= false then
-                        debug.log("[gh] cmd: " .. debug_fmt_args(args) .. " out:\n" .. vim.inspect(err), "error")
-                        vim.schedule(function() on_read(err, nil) end)
-                        return
-                    end
-                    vim.schedule(function () on_read("UNKNOWN", data) end)
-                end
-            end)
-    end)
+    end
+    vim.loop.read_start(stdout, reader(stdout, function(d) buffer = buffer .. d end))
+    vim.loop.read_start(stderr, reader(stderr, function(d) errbuf = errbuf .. d end))
 end
 
 function M.list_collaborators_async(on_read)
